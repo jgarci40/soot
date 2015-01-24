@@ -19,7 +19,6 @@
 
 package soot;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -33,9 +32,10 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import soot.baf.Baf;
 import soot.baf.BafBody;
@@ -420,9 +420,12 @@ public class PackManager {
                 source.resolve(clazz);
                 
             	// Create tags from all values we only have in code assingments now
-                for (SootClass sc : Scene.v().getApplicationClasses())
+                for (SootClass sc : Scene.v().getApplicationClasses()) {
+                    if( Options.v().validate() )
+                    	sc.validate();
                 	if (!sc.isPhantom)
                 		ConstantInitializerToTagTransformer.v().transformClass(sc, true);
+                }
                 
 				runBodyPacks(clazz);
 				//generate output
@@ -455,9 +458,12 @@ public class PackManager {
         retrieveAllBodies();
         
     	// Create tags from all values we only have in code assignments now
-        for (SootClass sc : Scene.v().getApplicationClasses())
+        for (SootClass sc : Scene.v().getApplicationClasses()) {
+            if( Options.v().validate() )
+            	sc.validate();
         	if (!sc.isPhantom)
         		ConstantInitializerToTagTransformer.v().transformClass(sc, true);
+        }
         
         // if running coffi cfg metrics, print out results and exit
         if (soot.jbco.Main.metrics) {
@@ -501,9 +507,9 @@ public class PackManager {
         runBodyPacks( reachableClasses() );
     }
 
-    private ZipOutputStream jarFile = null;
+    private JarOutputStream jarFile = null;
 
-    public ZipOutputStream getJarFile() {
+    public JarOutputStream getJarFile() {
 		return jarFile;
 	}
 
@@ -534,8 +540,8 @@ public class PackManager {
 		if( Options.v().output_jar() ) {
             String outFileName = SourceLocator.v().getOutputDir();
             try {
-                jarFile = new ZipOutputStream(new FileOutputStream(outFileName));
-            } catch( FileNotFoundException e ) {
+                jarFile = new JarOutputStream(new FileOutputStream(outFileName));
+            } catch( IOException e ) {
                 throw new CompilationDeathException("Cannot open output Jar file " + outFileName);
             }
         } else {
@@ -738,7 +744,7 @@ public class PackManager {
 
             try {
                 if( jarFile != null ) {
-                    ZipEntry entry = new ZipEntry(fileName.replaceAll("\\","/"));
+                    JarEntry entry = new JarEntry(fileName.replaceAll("\\","/"));
                     jarFile.putNextEntry(entry);
                     streamOut = jarFile;
                 } else {
@@ -996,7 +1002,10 @@ public class PackManager {
 
         try {
             if( jarFile != null ) {
-                ZipEntry entry = new ZipEntry(fileName);
+            	// Fix path delimiters according to ZIP specification
+            	fileName = fileName.replace("\\", "/");
+                JarEntry entry = new JarEntry(fileName);
+                entry.setMethod(ZipEntry.DEFLATED);
                 jarFile.putNextEntry(entry);
                 streamOut = jarFile;
             } else {
@@ -1064,6 +1073,8 @@ public class PackManager {
 	            streamOut.close();
 	            writerOut.close();
             }
+            else
+                jarFile.closeEntry();
         } catch (IOException e) {
             throw new CompilationDeathException("Cannot close output file " + fileName);
         }

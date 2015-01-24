@@ -24,9 +24,7 @@
 
 package soot.dexpler;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map.Entry;
+import java.util.Iterator;
 import java.util.Set;
 
 import org.jf.dexlib2.iface.Annotation;
@@ -110,12 +108,11 @@ public class DexClass {
                 deps.typesToHierarchy.add(interfaceClass.getType());
             }
         }
-
+        
         if (Options.v().oaat() && sc.resolvingLevel() <= SootClass.HIERARCHY) {
             return deps;
         }
-
-        DexAnnotation da = new DexAnnotation(dexFile);
+        DexAnnotation da = new DexAnnotation(sc, deps);
         
         // get the fields of the class
         for (Field sf : defItem.getStaticFields()) {
@@ -132,59 +129,76 @@ public class DexClass {
             sc.addField(sootField);
             da.handleFieldAnnotation(sootField, f);
         }
-
+        
         // get the methods of the class
         for (Method method : defItem.getDirectMethods()) {
-            SootMethod sm = DexMethod.makeSootMethod(defItem.getSourceFile(), method, sc);
+            SootMethod sm = DexMethod.makeSootMethod(dexFile, method, sc);
             if (sc.declaresMethod(sm.getName(), sm.getParameterTypes(), sm.getReturnType()))
                 continue;
             sc.addMethod(sm);
             da.handleMethodAnnotation(sm, method);
         }
         for (Method method : defItem.getVirtualMethods()) {
-            SootMethod sm = DexMethod.makeSootMethod(defItem.getSourceFile(), method, sc);
+            SootMethod sm = DexMethod.makeSootMethod(dexFile, method, sc);
             if (sc.declaresMethod(sm.getName(), sm.getParameterTypes(), sm.getReturnType()))
                 continue;
             sc.addMethod(sm);
             da.handleMethodAnnotation(sm, method);
         }
-        
-        da.handleClassAnnotation(sc, defItem);
-        
-        // If we have an inner class tag, we also need to set the corresponding
-        // outer class
+                
+        da.handleClassAnnotation(defItem);
+                
+        // In contrast to Java, Dalvik associates the InnerClassAttribute
+        // with the inner class, not the outer one. We need to copy the
+        // tags over to correspond to the Soot semantics.
         InnerClassAttribute ica = (InnerClassAttribute) sc.getTag("InnerClassAttribute");
-        List<Entry<InnerClassAttribute, InnerClassTag>> pairList= new ArrayList<Entry<InnerClassAttribute, InnerClassTag>>();
         if (ica != null) {
-        	for (Tag t : ica.getSpecs()) {
+        	Iterator<InnerClassTag> innerTagIt = ica.getSpecs().iterator();
+        	while (innerTagIt.hasNext()) {
+        		Tag t = innerTagIt.next();
         		if (t instanceof InnerClassTag) {
         			InnerClassTag ict = (InnerClassTag) t;
+        			
+        			// Check the inner class to make sure that this tag actually
+        			// refers to the current class as the inner class
+        			String inner = ict.getInnerClass().replaceAll("/", ".");
+        			if (!inner.equals(sc.getName()))
+        				continue;
+        			
         			String outer = null;
-        			if (ict.getOuterClass() == null) { // anonymous inner classes
-        				outer = ict.getInnerClass().replaceAll("\\$[0-9]*$", "").replaceAll("/", ".");
+					if (ict.getOuterClass() == null) { // anonymous and local classes
+						outer = ict.getInnerClass().replaceAll("\\$[0-9].*$", "").replaceAll("/", ".");
         			} else {
         				outer = ict.getOuterClass().replaceAll("/", ".");
         			}
+        			
         			SootClass osc = SootResolver.v().makeClassRef(outer);
-        			sc.setOuterClass(osc);
-        			InnerClassTag newt = new InnerClassTag(ict.getInnerClass(), ict.getOuterClass(), ict.getShortName(), ict.getAccessFlags());
-
-        			InnerClassAttribute icat = null;
-        			icat = (InnerClassAttribute)osc.getTag("InnerClassAttribute");
+        			if (osc == sc) {
+        				if (!sc.hasOuterClass())
+        					continue;
+        				osc = sc.getOuterClass();
+        			}
+        			
+        			// Get the InnerClassAttribute of the outer class
+        			InnerClassAttribute icat = (InnerClassAttribute)osc.getTag("InnerClassAttribute");
         			if (icat == null) {
-        				icat = new InnerClassAttribute(new ArrayList<Tag>());
+        				icat = new InnerClassAttribute();
         				osc.addTag(icat);
         			}
-        			Entry<InnerClassAttribute, InnerClassTag> pair = new java.util.AbstractMap.SimpleEntry<InnerClassAttribute, InnerClassTag>(icat, newt);
-        			pairList.add(pair);
+        			
+        			// Transfer the tag from the inner class to the outer class
+        			InnerClassTag newt = new InnerClassTag(ict.getInnerClass(), ict.getOuterClass(),
+        					ict.getShortName(), ict.getAccessFlags());
+        			icat.add(newt);
+        			
+        			// Remove the tag from the inner class as inner classes do
+        			// not have these tags in the Java / Soot semantics. The
+        			// DexPrinter will copy it back if we do dex->dex.
+					innerTagIt.remove();
         		}
         	}
-        	for (Entry<InnerClassAttribute, InnerClassTag> e: pairList) {
-        		e.getKey().add(e.getValue());
-        	}
-
         }
-
+        
         return deps;
     }
 

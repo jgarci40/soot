@@ -158,7 +158,7 @@ class SootMethodRefImpl implements SootMethodRef {
         //we simply create the methods on the fly; the method body will throw an appropriate
         //error just in case the code *is* actually reached at runtime
         if(Options.v().allow_phantom_refs())
-        	return createUnresolvedErrorMethod(cl);
+        	return createUnresolvedErrorMethod(declaringClass);
         
         if( trace == null ) {
         	ClassResolutionFailedException e = new ClassResolutionFailedException();
@@ -209,8 +209,10 @@ class SootMethodRefImpl implements SootMethodRef {
 		body.getUnits().add(assignStmt);
 		
 		//exc.<init>(message)
-		SootMethodRef cref = runtimeExceptionType.getSootClass().getMethod("<init>", Collections.<Type>singletonList(RefType.v("java.lang.String"))).makeRef();
-		SpecialInvokeExpr constructorInvokeExpr = Jimple.v().newSpecialInvokeExpr(exceptionLocal, cref, StringConstant.v("Unresolved compilation error: Method "+getSignature()+" does not exist!"));
+		SootMethodRef cref = Scene.v().makeConstructorRef(runtimeExceptionType.getSootClass(),
+				Collections.<Type>singletonList(RefType.v("java.lang.String")));
+		SpecialInvokeExpr constructorInvokeExpr = Jimple.v().newSpecialInvokeExpr(exceptionLocal, cref,
+				StringConstant.v("Unresolved compilation error: Method "+getSignature()+" does not exist!"));
 		InvokeStmt initStmt = Jimple.v().newInvokeStmt(constructorInvokeExpr);
 		body.getUnits().insertAfter(initStmt, assignStmt);
 		

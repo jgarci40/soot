@@ -46,8 +46,11 @@ import soot.Local;
 import soot.LongType;
 import soot.NullType;
 import soot.PhaseOptions;
+import soot.RefType;
+import soot.Scene;
 import soot.Singletons;
 import soot.Timers;
+import soot.Trap;
 import soot.Type;
 import soot.Unit;
 import soot.Value;
@@ -65,6 +68,7 @@ import soot.jimple.NewArrayExpr;
 import soot.jimple.NewExpr;
 import soot.jimple.NewMultiArrayExpr;
 import soot.jimple.NopStmt;
+import soot.jimple.NullConstant;
 import soot.jimple.RemExpr;
 import soot.jimple.Stmt;
 import soot.options.Options;
@@ -118,8 +122,20 @@ public class DeadAssignmentEliminator extends BodyTransformer
 			boolean isEssential = true;
 			
 			if (s instanceof NopStmt) {
-				it.remove();
-				continue;
+				// Hack: do not remove nop if is is used for a Trap
+				// which is at the very end of the code.
+				boolean keepNop = false;
+				if (b.getUnits().getLast() == s) {
+					for (Trap t : b.getTraps()) {
+						if (t.getEndUnit() == s) {
+							keepNop = true;
+						}
+					}
+				}
+				if (!keepNop) {
+					it.remove();
+					continue;
+				}
 			}
 			else if (s instanceof AssignStmt) {
 				AssignStmt as = (AssignStmt) s;
@@ -144,17 +160,22 @@ public class DeadAssignmentEliminator extends BodyTransformer
 					if ( !checkInvoke ) {
 						checkInvoke |= as.containsInvokeExpr();
 					}
-
-					if (rhs instanceof InvokeExpr || 
+					
+					if (rhs instanceof CastExpr) {
+						// CastExpr          : can trigger ClassCastException, but null-casts never fail
+						CastExpr ce = (CastExpr) rhs;
+						if (!(ce.getCastType() instanceof RefType
+								&& ce.getOp() == NullConstant.v()))
+							isEssential = true;
+					}
+					else if (rhs instanceof InvokeExpr || 
 					    rhs instanceof ArrayRef || 
-					    rhs instanceof CastExpr ||
 					    rhs instanceof NewExpr ||
 					    rhs instanceof NewArrayExpr ||
 					    rhs instanceof NewMultiArrayExpr )
 					{
 					   // ArrayRef          : can have side effects (like throwing a null pointer exception)
 					   // InvokeExpr        : can have side effects (like throwing a null pointer exception)
-					   // CastExpr          : can trigger ClassCastException
 					   // NewArrayExpr      : can throw exception
 					   // NewMultiArrayExpr : can throw exception
 					   // NewExpr           : can trigger class initialization					   
@@ -253,6 +274,10 @@ public class DeadAssignmentEliminator extends BodyTransformer
 					Stmt newInvoke = Jimple.v().newInvokeStmt(s.getInvokeExpr());
 					newInvoke.addAllTagsOf(s);					
 					units.swapWith(s, newInvoke);
+					
+					// If we have a callgraph, we need to fix it
+					if (Scene.v().hasCallGraph())
+						Scene.v().getCallGraph().swapEdgesOutOf(s, newInvoke);
 				}
 			}
 		}

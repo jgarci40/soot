@@ -174,19 +174,17 @@ class SootClassBuilder extends ClassVisitor {
 	@Override
 	public void visitInnerClass(String name, String outerName, String innerName, int access) {
 		klass.addTag(new InnerClassTag(name, outerName, innerName, access));
-		if (outerName != null)
-			klass.setOuterClass(SootResolver.v().makeClassRef(AsmUtil.toQualifiedName(outerName)));
 	}
 	
 	@Override
 	public void visitOuterClass(String owner, String name, String desc) {
-		if (name == null) {
-			owner = AsmUtil.toQualifiedName(owner);
-			deps.add(RefType.v(owner));
-			klass.setOuterClass(SootResolver.v().makeClassRef(owner));
-		} else {
+
+		if (name != null)
 			klass.addTag(new EnclosingMethodTag(owner, name, desc));
-		}
+
+		owner = AsmUtil.toQualifiedName(owner);
+		deps.add(RefType.v(owner));
+		klass.setOuterClass(SootResolver.v().makeClassRef(owner));
 	}
 	
 	@Override

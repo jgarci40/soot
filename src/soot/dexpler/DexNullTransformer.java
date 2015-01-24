@@ -24,6 +24,7 @@
 
 package soot.dexpler;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +33,6 @@ import java.util.Set;
 import soot.ArrayType;
 import soot.Body;
 import soot.Local;
-import soot.RefLikeType;
 import soot.SootMethodRef;
 import soot.Type;
 import soot.Unit;
@@ -44,8 +44,8 @@ import soot.jimple.AssignStmt;
 import soot.jimple.BinopExpr;
 import soot.jimple.CastExpr;
 import soot.jimple.ConditionExpr;
+import soot.jimple.DefinitionStmt;
 import soot.jimple.EnterMonitorStmt;
-import soot.jimple.EqExpr;
 import soot.jimple.ExitMonitorStmt;
 import soot.jimple.FieldRef;
 import soot.jimple.IdentityStmt;
@@ -55,7 +55,7 @@ import soot.jimple.IntConstant;
 import soot.jimple.InvokeExpr;
 import soot.jimple.InvokeStmt;
 import soot.jimple.LengthExpr;
-import soot.jimple.NeExpr;
+import soot.jimple.LongConstant;
 import soot.jimple.NewArrayExpr;
 import soot.jimple.NewExpr;
 import soot.jimple.NullConstant;
@@ -78,7 +78,7 @@ import soot.toolkits.scalar.UnitValueBoxPair;
  *
  * @author Michael Markert
  */
-public class DexNullTransformer extends DexTransformer {
+public class DexNullTransformer extends AbstractNullTransformer {
 	// Note: we need an instance variable for inner class access, treat this as
 	// a local variable (including initialization before use)
 
@@ -104,20 +104,12 @@ public class DexNullTransformer extends DexTransformer {
 			usedAsObject = false;
 			List<Unit> defs = collectDefinitionsWithAliases(loc, localDefs,
 					localUses, body);
-			// check if no use
-			for (Unit u : defs) {
-				for (UnitValueBoxPair pair : localUses.getUsesOf(u)) {
-					Debug.printDbg("[use in u]: ", pair.getUnit());
-				}
-			}
 			// process normally
 			doBreak = false;
 			for (Unit u : defs) {
 				// put correct local in l
-				if (u instanceof AssignStmt) {
-					l = (Local) ((AssignStmt) u).getLeftOp();
-				} else if (u instanceof IdentityStmt) {
-					l = (Local) ((IdentityStmt) u).getLeftOp();
+				if (u instanceof DefinitionStmt) {
+					l = (Local) ((DefinitionStmt) u).getLeftOp();
 				} else if (u instanceof IfStmt) {
 					throw new RuntimeException(
 							"ERROR: def can not be something else than Assign or Identity statement! (def: "
@@ -230,7 +222,13 @@ public class DexNullTransformer extends DexTransformer {
 							Value r = stmt.getRightOp();
 
 							if (left instanceof ArrayRef) {
-								if (((ArrayRef) left).getIndex() == l) {
+								ArrayRef ar = (ArrayRef) left;
+								if (ar.getIndex() == l) {
+									doBreak = true;
+									return;
+								}
+								else if (ar.getBase() == l) {
+									usedAsObject = true;
 									doBreak = true;
 									return;
 								}
@@ -374,8 +372,10 @@ public class DexNullTransformer extends DexTransformer {
 				for (Unit u : defs) {
 					replaceWithNull(u);
 					for (UnitValueBoxPair pair : localUses.getUsesOf(u)) {
-						Unit use = pair.getUnit();
-						replaceWithNull(use);
+						Stmt use = (Stmt) pair.getUnit();
+						// If we have a[x] = 0 and a is an object, we may not conclude 0 -> null
+						if (!use.containsArrayRef() || use.getArrayRef().getBase() != loc)
+							replaceWithNull(use);
 					}
 				}
 			} // end if
@@ -386,32 +386,38 @@ public class DexNullTransformer extends DexTransformer {
 			u.apply(new AbstractStmtSwitch() {
 				@Override
 				public void caseAssignStmt(AssignStmt stmt) {
+					// Case a = 0 with a being an object
 					if (isObject(stmt.getLeftOp().getType())
-							&& stmt.getRightOp() instanceof IntConstant) {
-						IntConstant iconst = (IntConstant) stmt.getRightOp();
-						assert iconst.value == 0;
+							&& isConstZero(stmt.getRightOp())) {
 						stmt.setRightOp(NullConstant.v());
 						return;
 					}
+					
+					// Case a = (Object) 0
 					if (stmt.getRightOp() instanceof CastExpr) {
 						CastExpr ce = (CastExpr) stmt.getRightOp();
-						if (isObject(ce.getCastType())
-								&& ce.getOp() instanceof IntConstant) {
-							IntConstant iconst = (IntConstant) ce.getOp();
-							assert iconst.value == 0;
+						if (isObject(ce.getCastType()) && isConstZero(ce.getOp())) {
 							stmt.setRightOp(NullConstant.v());
 						}
 					}
+					
+					// Case a[0] = 0
 					if (stmt.getLeftOp() instanceof ArrayRef
-							&& stmt.getRightOp() instanceof IntConstant) {
-						if (isObjectArray(
-								((ArrayRef) stmt.getLeftOp()).getBase(), body)) {
-							IntConstant iconst = (IntConstant) stmt
-									.getRightOp();
-							assert iconst.value == 0;
+							&& isConstZero(stmt.getRightOp())) {
+						ArrayRef ar = (ArrayRef) stmt.getLeftOp();
+						if (isObjectArray(ar.getBase(), body)
+								|| stmt.hasTag("ObjectOpTag")) {
 							stmt.setRightOp(NullConstant.v());
 						}
 					}
+				}
+
+				private boolean isConstZero(Value rightOp) {
+					if (rightOp instanceof IntConstant && ((IntConstant) rightOp).value == 0)
+						return true;
+					if (rightOp instanceof LongConstant && ((LongConstant) rightOp).value == 0)
+						return true;
+					return false;
 				}
 
 				@Override
@@ -451,7 +457,7 @@ public class DexNullTransformer extends DexTransformer {
 						if (isObject(nea.getBaseType()))
 							return true;
 					}
-					if (assign.getRightOp() instanceof FieldRef) {
+					else if (assign.getRightOp() instanceof FieldRef) {
 						FieldRef fr = (FieldRef) assign.getRightOp();
 						if (fr.getType() instanceof ArrayType)
 							if (isObject(((ArrayType) fr.getType())
@@ -463,11 +469,7 @@ public class DexNullTransformer extends DexTransformer {
 		}
 		return false;
 	}
-
-	private boolean isObject(Type t) {
-		return t instanceof RefLikeType;
-	}
-
+	
 	/**
 	 * Collect all the locals which are assigned a IntConstant(0) or are used
 	 * within a zero comparison.
@@ -476,7 +478,7 @@ public class DexNullTransformer extends DexTransformer {
 	 *            the body to analyze
 	 */
 	private Set<Local> getNullCandidates(Body body) {
-		Set<Local> candidates = new HashSet<Local>();
+		Set<Local> candidates = null;
 		for (Unit u : body.getUnits()) {
 			if (u instanceof AssignStmt) {
 				AssignStmt a = (AssignStmt) u;
@@ -484,7 +486,10 @@ public class DexNullTransformer extends DexTransformer {
 					continue;
 				Local l = (Local) a.getLeftOp();
 				Value r = a.getRightOp();
-				if ((r instanceof IntConstant && ((IntConstant) r).value == 0)) {
+				if ((r instanceof IntConstant && ((IntConstant) r).value == 0)
+						|| (r instanceof LongConstant && ((LongConstant) r).value == 0)) {
+					if (candidates == null)
+						candidates = new HashSet<Local>();
 					candidates.add(l);
 					Debug.printDbg("[add null candidate: ", u);
 				}
@@ -492,52 +497,15 @@ public class DexNullTransformer extends DexTransformer {
 				ConditionExpr expr = (ConditionExpr) ((IfStmt) u)
 						.getCondition();
 				if (isZeroComparison(expr) && expr.getOp1() instanceof Local) {
+					if (candidates == null)
+						candidates = new HashSet<Local>();
 					candidates.add((Local) expr.getOp1());
 					Debug.printDbg("[add null candidate if: ", u);
 				}
 			}
 		}
 
-		return candidates;
+		return candidates == null ? Collections.<Local>emptySet() : candidates;
 	}
-
-	/**
-	 * Replace 0 with null in the given unit.
-	 *
-	 * @param u
-	 *            the unit where 0 will be replaced with null.
-	 */
-	private void replaceWithNull(Unit u) {
-
-		if (u instanceof IfStmt) {
-			ConditionExpr expr = (ConditionExpr) ((IfStmt) u).getCondition();
-			if (isZeroComparison(expr)) {
-				expr.setOp2(NullConstant.v());
-				Debug.printDbg("[null] replacing with null in ", u);
-				Debug.printDbg(" new u: ", u);
-			}
-		} else if (u instanceof AssignStmt) {
-			AssignStmt s = (AssignStmt) u;
-			Value v = s.getRightOp();
-			if ((v instanceof IntConstant) && ((IntConstant) v).value == 0) {
-				s.setRightOp(NullConstant.v());
-				Debug.printDbg("[null] replacing with null in ", u);
-				Debug.printDbg(" new u: ", u);
-			}
-		}
-
-	}
-
-	/**
-	 * Examine expr if it is a comparison with 0.
-	 *
-	 * @param expr
-	 *            the ConditionExpr to examine
-	 */
-	private boolean isZeroComparison(ConditionExpr expr) {
-		return (expr.getOp2() instanceof IntConstant)
-				&& ((IntConstant) expr.getOp2()).value == 0
-				&& ((expr instanceof EqExpr) || (expr instanceof NeExpr));
-	}
-
+	
 }

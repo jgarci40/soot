@@ -1,8 +1,10 @@
 package soot.toolkits.scalar;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -68,9 +70,7 @@ public class ConstantInitializerToTagTransformer extends SceneTransformer {
 		
 		Set<SootField> nonConstantFields = new HashSet<SootField>();
 		Map<SootField, ConstantValueTag> newTags = new HashMap<SootField, ConstantValueTag>();
-		
-		if (smInit.toString().equals("<com.fasterxml.jackson.core.io.NumberOutput: void <clinit>()>"))
-			System.out.println("x");
+		Set<SootField> removeTagList = new HashSet<SootField>(); // in case of mismatch between code/constant table values, constant tags are removed
 		
 		for (Iterator<Unit> itU = smInit.getActiveBody().getUnits().snapshotIterator();
 				itU.hasNext(); ) {
@@ -96,8 +96,10 @@ public class ConstantInitializerToTagTransformer extends SceneTransformer {
 									if (removeAssignments)
 										itU.remove();
 								}
-								else
-									G.v().out.println("WARNING: Constant value mismatch between code and constant table");
+								else {
+									G.v().out.println("WARNING: Constant value for field '"+ field +"' mismatch between code ("+ (Constant) assign.getRightOp() +") and constant table ("+ t +")");
+									removeTagList.add(field);
+								}
 								found = true;
 								break;
 							}
@@ -110,6 +112,7 @@ public class ConstantInitializerToTagTransformer extends SceneTransformer {
 							if (!checkConstantValue(newTags.get(field), (Constant) assign.getRightOp())) {
 								nonConstantFields.add(field);
 								newTags.remove(field);
+								removeTagList.add(field);
 								continue;
 							}
 							
@@ -118,6 +121,10 @@ public class ConstantInitializerToTagTransformer extends SceneTransformer {
 								newTags.put(field, newTag);
 						}
 					}
+				} else if (assign.getLeftOp() instanceof StaticFieldRef){
+					// a non-constant is assigned to the field
+					SootField sf = ((StaticFieldRef)assign.getLeftOp()).getField();
+					removeTagList.add(sf);
 				}
 			}
 		}
@@ -125,6 +132,8 @@ public class ConstantInitializerToTagTransformer extends SceneTransformer {
 		// Do the actual assignment
 		for (Entry<SootField, ConstantValueTag> entry : newTags.entrySet()) {
 			SootField field = entry.getKey();
+			if (removeTagList.contains(field))
+				continue;
 			field.addTag(entry.getValue());
 		}
 		
@@ -139,6 +148,21 @@ public class ConstantInitializerToTagTransformer extends SceneTransformer {
 							itU.remove();
 				}
 			}
+		
+		// remove constant tags
+		for (SootField sf: removeTagList) {
+			if (removeTagList.contains(sf)) {
+				List<Tag> toRemoveTagList = new ArrayList<Tag>();
+				for (Tag t : sf.getTags()) {
+					if (t instanceof ConstantValueTag) {
+						toRemoveTagList.add(t);
+					}
+				}
+				for (Tag t: toRemoveTagList) {
+					sf.getTags().remove(t);
+				}
+			}
+		}
 	}
 
 	private ConstantValueTag createConstantTagFromValue(Constant rightOp) {

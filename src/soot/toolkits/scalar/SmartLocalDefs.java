@@ -35,6 +35,8 @@ import soot.Unit;
 import soot.Value;
 import soot.ValueBox;
 import soot.options.Options;
+import soot.toolkits.graph.ExceptionalUnitGraph;
+import soot.toolkits.graph.ExceptionalUnitGraph.ExceptionDest;
 import soot.toolkits.graph.UnitGraph;
 import soot.util.Cons;
 
@@ -42,7 +44,7 @@ import soot.util.Cons;
  * Analysis that provides an implementation of the LocalDefs interface.
  */
 public class SmartLocalDefs implements LocalDefs {
-	private final Map<Cons, List<Unit>> answer;
+	private final Map<Cons<Unit, Local>, List<Unit>> answer;
 
 	private final Map<Local, Set<Unit>> localToDefs; // for each local, set of units where it's defined
 	private final UnitGraph graph;
@@ -101,16 +103,16 @@ public class SmartLocalDefs implements LocalDefs {
 		for (Unit u : graph) {
 			// translate locals to bits
 			BitSet set = new BitSet(n);
-			for (Object o : live.getLiveLocalsAfter(u)) {
-				set.set(((Local) o).getNumber());
+			for (Local l : live.getLiveLocalsAfter(u)) {
+				set.set(l.getNumber());
 			}
 			liveLocalsAfter.put(u, set);
 
 			Local l = localDef(u);
 			if (l == null)
 				continue;
-			Set<Unit> s = defsOf(l);
-			s.add(u);
+			
+			addDefOf(l, u);
 		}
 
 		if (Options.v().verbose())
@@ -123,12 +125,12 @@ public class SmartLocalDefs implements LocalDefs {
 
 		analysis = new LocalDefsAnalysis(graph);
 
-		answer = new HashMap<Cons, List<Unit>>();
+		answer = new HashMap<Cons<Unit, Local>, List<Unit>>();
 		for (Unit u : graph) {
 			for (ValueBox vb : u.getUseBoxes()) {
 				Value v = vb.getValue();
 				if (v instanceof Local) {
-					Cons key = new Cons(u, v);
+					Cons<Unit, Local> key = new Cons<Unit, Local>(u, (Local) v);
 					if ( !answer.containsKey(key) ) {
 						List<Unit> lst = asList(defsOf((Local) v), analysis.getFlowBefore(u));					
 						answer.put(key, lst);
@@ -157,7 +159,7 @@ public class SmartLocalDefs implements LocalDefs {
 			return null;
 		if (size != 1)
 			throw new RuntimeException();
-		ValueBox vb = (ValueBox) defBoxes.get(0);
+		ValueBox vb = defBoxes.get(0);
 		Value v = vb.getValue();
 		if (!(v instanceof Local))
 			return null;
@@ -165,13 +167,20 @@ public class SmartLocalDefs implements LocalDefs {
 	}
 
 	private Set<Unit> defsOf(Local l) {
-		Set<Unit> ret = localToDefs.get(l);
-		if (ret == null)
-			localToDefs.put(l, ret = new HashSet<Unit>());
-		return ret;
+		Set<Unit> s = localToDefs.get(l);
+		if (s == null)
+			return Collections.emptySet();
+		return s;
+	}
+	
+	private void addDefOf(Local l, Unit u) {
+		Set<Unit> s = localToDefs.get(l);
+		if (s == null)
+			localToDefs.put(l, s = new HashSet<Unit>());
+		s.add(u);
 	}
 
-	class LocalDefsAnalysis extends ForwardFlowAnalysis<Unit, Set<Unit>> {
+	class LocalDefsAnalysis extends ForwardFlowAnalysisExtended<Unit, Set<Unit>> {
 		LocalDefsAnalysis(UnitGraph g) {
 			super(g);
 			doAnalysis();
@@ -189,11 +198,12 @@ public class SmartLocalDefs implements LocalDefs {
 		}
 
 		@Override
-		protected void flowThrough(Set<Unit> in, Unit u, Set<Unit> out) {
+		protected void flowThrough(Set<Unit> in, Unit u, Unit succ, Set<Unit> out) {
+			final ExceptionalUnitGraph exGraph = graph instanceof ExceptionalUnitGraph
+					? (ExceptionalUnitGraph) graph : null;
 			out.clear();
 
 			BitSet liveLocals = liveLocalsAfter.get(u);
-
 			Local l = localDef(u);
 
 			if (l == null) {// add all units contained in mask
@@ -205,18 +215,27 @@ public class SmartLocalDefs implements LocalDefs {
 			} else {// check unit whether contained in allDefUnits before add
 					// into out set.
 				Set<Unit> allDefUnits = defsOf(l);
-
+				
+				boolean isExceptionalTarget = false;
+				if (exGraph != null) {
+					for (ExceptionDest ed : exGraph.getExceptionDests(u))
+						if (ed.getTrap() != null && ed.getTrap().getHandlerUnit() == succ)
+							isExceptionalTarget = true;
+				}
+				
 				for (Unit inU : in) {
-					if (liveLocals.get(localDef(inU).getNumber())
-							&& !allDefUnits.contains(inU)) {
-						out.add(inU);
-					}
+					if (liveLocals.get(localDef(inU).getNumber()))
+						// If we have a = foo and foo can throw an exception, we
+						// must keep the old definition of a.
+						if (isExceptionalTarget || !allDefUnits.contains(inU))
+							out.add(inU);
 				}
 
-				assert false == out.removeAll(allDefUnits);
+				assert isExceptionalTarget || !out.removeAll(allDefUnits);
 
 				if (liveLocals.get(l.getNumber())) {
-					out.add(u);
+					if (!isExceptionalTarget)
+						out.add(u);
 				}
 			}
 		}
@@ -239,7 +258,7 @@ public class SmartLocalDefs implements LocalDefs {
 	}
 
 	public List<Unit> getDefsOfAt(Local l, Unit s) {
-		return answer.get(new Cons(s, l));
+		return answer.get(new Cons<Unit, Local>(s, l));
 	}
 
 }

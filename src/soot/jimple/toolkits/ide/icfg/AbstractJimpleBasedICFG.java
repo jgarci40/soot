@@ -51,18 +51,22 @@ public abstract class AbstractJimpleBasedICFG implements BiDiInterproceduralCFG<
 	protected final LoadingCache<SootMethod,Set<Unit>> methodToCallsFromWithin = IDESolver.DEFAULT_CACHE_BUILDER.build( new CacheLoader<SootMethod,Set<Unit>>() {
 					@Override
 					public Set<Unit> load(SootMethod m) throws Exception {
-						Set<Unit> res = new LinkedHashSet<Unit>();
+						Set<Unit> res = null;
 						for(Unit u: m.getActiveBody().getUnits()) {
-							if(isCallStmt(u))
+							if(isCallStmt(u)) {
+								if (res == null)
+									res = new LinkedHashSet<Unit>();
 								res.add(u);
+							}
 						}
-						return res;
+						return res == null ? Collections.<Unit>emptySet() : res;
 					}
 				});
 
 	@Override
 	public SootMethod getMethodOf(Unit u) {
-		assert unitToOwner.containsKey(u);
+		assert unitToOwner.containsKey(u) : "Statement " + u
+				+ " not in unit-to-owner mapping";
 		return unitToOwner.get(u).getMethod();
 	}
 
