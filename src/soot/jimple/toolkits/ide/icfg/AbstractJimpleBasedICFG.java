@@ -20,6 +20,7 @@ import soot.UnitBox;
 import soot.Value;
 import soot.jimple.Stmt;
 import soot.toolkits.exceptions.UnitThrowAnalysis;
+import soot.toolkits.graph.BriefUnitGraph;
 import soot.toolkits.graph.DirectedGraph;
 import soot.toolkits.graph.ExceptionalUnitGraph;
 
@@ -27,7 +28,9 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
 public abstract class AbstractJimpleBasedICFG implements BiDiInterproceduralCFG<Unit,SootMethod> {
-
+	
+	protected final boolean enableExceptions;
+	
 	@DontSynchronize("written by single thread; read afterwards")
 	protected final Map<Unit,Body> unitToOwner = new HashMap<Unit,Body>();
 	
@@ -62,7 +65,15 @@ public abstract class AbstractJimpleBasedICFG implements BiDiInterproceduralCFG<
 						return res == null ? Collections.<Unit>emptySet() : res;
 					}
 				});
+	
+	public AbstractJimpleBasedICFG() {
+		this(true);
+	}
 
+	public AbstractJimpleBasedICFG(boolean enableExceptions) {
+		this.enableExceptions = enableExceptions;
+	}
+	
 	@Override
 	public SootMethod getMethodOf(Unit u) {
 		assert unitToOwner.containsKey(u) : "Statement " + u
@@ -73,6 +84,8 @@ public abstract class AbstractJimpleBasedICFG implements BiDiInterproceduralCFG<
 	@Override
 	public List<Unit> getSuccsOf(Unit u) {
 		Body body = unitToOwner.get(u);
+		if (body == null)
+			return Collections.emptyList();
 		DirectedGraph<Unit> unitGraph = getOrCreateUnitGraph(body);
 		return unitGraph.getSuccsOf(u);
 	}
@@ -87,7 +100,9 @@ public abstract class AbstractJimpleBasedICFG implements BiDiInterproceduralCFG<
 	}
 
 	protected DirectedGraph<Unit> makeGraph(Body body) {
-		return new ExceptionalUnitGraph(body, UnitThrowAnalysis.v() ,true);
+		return enableExceptions
+				? new ExceptionalUnitGraph(body, UnitThrowAnalysis.v() ,true)
+				: new BriefUnitGraph(body);
 	}
 
 	@Override
@@ -116,7 +131,7 @@ public abstract class AbstractJimpleBasedICFG implements BiDiInterproceduralCFG<
 	public boolean isBranchTarget(Unit u, Unit succ) {
 		assert getSuccsOf(u).contains(succ);
 		if(!u.branches()) return false;
-		for (UnitBox ub : succ.getUnitBoxes()) {
+		for (UnitBox ub : u.getUnitBoxes()) {
 			if(ub.getUnit()==succ) return true;
 		}
 		return false;

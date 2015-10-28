@@ -46,8 +46,6 @@ import soot.jimple.toolkits.scalar.LocalCreation;
 import soot.jimple.toolkits.scalar.UnreachableCodeEliminator;
 import soot.toolkits.graph.ExceptionalUnitGraph;
 import soot.toolkits.scalar.LocalDefs;
-import soot.toolkits.scalar.SimpleLiveLocals;
-import soot.toolkits.scalar.SmartLocalDefs;
 
 /**
  * If Dalvik bytecode contains statements using a base array which is always
@@ -70,7 +68,7 @@ public class DexNullArrayRefTransformer extends BodyTransformer {
 
 	protected void internalTransform(final Body body, String phaseName, Map<String, String> options) {		
 		final ExceptionalUnitGraph g = new ExceptionalUnitGraph(body, DalvikThrowAnalysis.v());
-		final LocalDefs defs = new SmartLocalDefs(g, new SimpleLiveLocals(g));
+		final LocalDefs defs = LocalDefs.Factory.newLocalDefs(g);
 		final LocalCreation lc = new LocalCreation(body.getLocals(), "ex");
 		
 		boolean changed = false;
@@ -98,7 +96,8 @@ public class DexNullArrayRefTransformer extends BodyTransformer {
 							changed = true;
 						}
 					}
-					else if (isAlwaysNullBefore(s, (Local) base, defs)) {
+					else if (base == NullConstant.v()
+							|| isAlwaysNullBefore(s, (Local) base, defs)) {
 						createThrowStmt(body, s, lc);
 						changed = true;
 					}

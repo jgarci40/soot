@@ -38,6 +38,7 @@ import soot.Type;
 import soot.Unit;
 import soot.UnknownType;
 import soot.Value;
+import soot.ValueBox;
 import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.ArrayRef;
 import soot.jimple.AssignStmt;
@@ -66,10 +67,8 @@ import soot.jimple.StringConstant;
 import soot.jimple.ThrowStmt;
 import soot.jimple.internal.AbstractInstanceInvokeExpr;
 import soot.jimple.internal.AbstractInvokeExpr;
-import soot.toolkits.graph.ExceptionalUnitGraph;
-import soot.toolkits.scalar.SimpleLiveLocals;
-import soot.toolkits.scalar.SimpleLocalUses;
-import soot.toolkits.scalar.SmartLocalDefs;
+import soot.toolkits.scalar.LocalDefs;
+import soot.toolkits.scalar.LocalUses;
 import soot.toolkits.scalar.UnitValueBoxPair;
 
 /**
@@ -91,13 +90,9 @@ public class DexNullTransformer extends AbstractNullTransformer {
 
 	private Local l = null;
 
-	protected void internalTransform(final Body body, String phaseName,
-			@SuppressWarnings("rawtypes") Map options) {
-		final ExceptionalUnitGraph g = new ExceptionalUnitGraph(body);
-
-		final SmartLocalDefs localDefs = new SmartLocalDefs(g,
-				new SimpleLiveLocals(g));
-		final SimpleLocalUses localUses = new SimpleLocalUses(g, localDefs);
+	protected void internalTransform(final Body body, String phaseName, Map<String,String> options) {
+        final LocalDefs localDefs = LocalDefs.Factory.newLocalDefs(body);
+		final LocalUses localUses = LocalUses.Factory.newLocalUses(body, localDefs);
 		
 		for (Local loc : getNullCandidates(body)) {
 			Debug.printDbg("\n[null candidate] ", loc);
@@ -234,6 +229,15 @@ public class DexNullTransformer extends AbstractNullTransformer {
 								}
 							}
 							
+							if (left instanceof InstanceFieldRef) {
+								InstanceFieldRef ifr = (InstanceFieldRef) left;
+								if (ifr.getBase() == l) {
+									usedAsObject = true;
+									doBreak = true;
+									return;
+								}
+							}
+							
 							// used to assign
 							if (stmt.getRightOp() == l) {
 								Value l = stmt.getLeftOp();
@@ -283,13 +287,8 @@ public class DexNullTransformer extends AbstractNullTransformer {
 								return;
 							} else if (r instanceof StringConstant
 									|| r instanceof NewExpr) {
-								Debug.printDbg(
-										"NOT POSSIBLE StringConstant or NewExpr! ",
-										stmt);
-								System.exit(-1);
-								usedAsObject = true;
-								doBreak = true;
-								return;
+								throw new RuntimeException(
+										"NOT POSSIBLE StringConstant or NewExpr at " + stmt);
 							} else if (r instanceof NewArrayExpr) {
 								usedAsObject = false;
 								doBreak = true;
@@ -318,12 +317,8 @@ public class DexNullTransformer extends AbstractNullTransformer {
 						}
 
 						public void caseIdentityStmt(IdentityStmt stmt) {
-							if (stmt.getLeftOp() == l) {
-								Debug.printDbg("IMPOSSIBLE 0");
-								System.exit(-1);
-								usedAsObject = isObject(stmt.getRightOp()
-										.getType());
-							}
+							if (stmt.getLeftOp() == l)
+								throw new RuntimeException("IMPOSSIBLE 0");
 						}
 
 						public void caseEnterMonitorStmt(EnterMonitorStmt stmt) {
@@ -371,10 +366,15 @@ public class DexNullTransformer extends AbstractNullTransformer {
 			if (usedAsObject) {
 				for (Unit u : defs) {
 					replaceWithNull(u);
+					Set<Value> defLocals = new HashSet<Value>();
+					for (ValueBox vb : u.getDefBoxes())
+						defLocals.add(vb.getValue());
+					
 					for (UnitValueBoxPair pair : localUses.getUsesOf(u)) {
 						Stmt use = (Stmt) pair.getUnit();
 						// If we have a[x] = 0 and a is an object, we may not conclude 0 -> null
-						if (!use.containsArrayRef() || use.getArrayRef().getBase() != loc)
+						if (!use.containsArrayRef()
+								|| !defLocals.contains(use.getArrayRef().getBase()))
 							replaceWithNull(use);
 					}
 				}

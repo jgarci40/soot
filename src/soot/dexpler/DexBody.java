@@ -55,6 +55,7 @@ import soot.Modifier;
 import soot.NullType;
 import soot.PrimType;
 import soot.RefType;
+import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Trap;
@@ -75,8 +76,10 @@ import soot.dexpler.typing.Validate;
 import soot.javaToJimple.LocalGenerator;
 import soot.jimple.AssignStmt;
 import soot.jimple.CastExpr;
+import soot.jimple.CaughtExceptionRef;
 import soot.jimple.ConditionExpr;
 import soot.jimple.Constant;
+import soot.jimple.DefinitionStmt;
 import soot.jimple.EqExpr;
 import soot.jimple.IfStmt;
 import soot.jimple.IntConstant;
@@ -87,6 +90,7 @@ import soot.jimple.NullConstant;
 import soot.jimple.internal.JIdentityStmt;
 import soot.jimple.toolkits.base.Aggregator;
 import soot.jimple.toolkits.scalar.ConditionalBranchFolder;
+import soot.jimple.toolkits.scalar.ConstantCastEliminator;
 import soot.jimple.toolkits.scalar.CopyPropagator;
 import soot.jimple.toolkits.scalar.DeadAssignmentEliminator;
 import soot.jimple.toolkits.scalar.LocalNameStandardizer;
@@ -437,6 +441,7 @@ public class DexBody  {
         for(DeferableInstruction instruction : deferredInstructions) {
             instruction.deferredJimplify(this);
         }
+        
         if (tries != null)
             addTraps();
         
@@ -471,21 +476,24 @@ public class DexBody  {
          */
 
         Debug.printDbg("body before any transformation : \n", jBody);
+
+        Debug.printDbg("\nbefore splitting");
+        Debug.printDbg("",(Body)jBody);
+        
+        // split first to find undefined uses
+        getLocalSplitter().transform(jBody);
         
 		// Remove dead code and the corresponding locals before assigning types
 		getUnreachableCodeEliminator().transform(jBody);
 		DeadAssignmentEliminator.v().transform(jBody);
 		UnusedLocalEliminator.v().transform(jBody);
 
-        Debug.printDbg("\nbefore splitting");
-        Debug.printDbg("",(Body)jBody);
         
-        DexReturnInliner.v().transform(jBody);        
-        getLocalSplitter().transform(jBody);
+        DexReturnInliner.v().transform(jBody);    
         
         Debug.printDbg("\nafter splitting");
         Debug.printDbg("",(Body)jBody);
-        
+                
   		for (RetypeableInstruction i : instructionsToRetype)
             i.retype(jBody);
 
@@ -542,7 +550,7 @@ public class DexBody  {
         
         TypeAssigner.v().transform(jBody);
         
-        if (IDalvikTyper.ENABLE_DVKTYPER) {
+		if (IDalvikTyper.ENABLE_DVKTYPER) {
             for (Unit u: jBody.getUnits()) {
                 if (u instanceof IfStmt) {
                     ConditionExpr expr = (ConditionExpr) ((IfStmt) u).getCondition();
@@ -618,7 +626,7 @@ public class DexBody  {
 
         Debug.printDbg("\nafter type assigner localpacker and name standardizer");
         Debug.printDbg("",(Body)jBody);
-
+        
         // Inline PackManager.v().getPack("jb").apply(jBody);
         // Keep only transformations that have not been done
         // at this point.
@@ -636,6 +644,9 @@ public class DexBody  {
         // to statically decide the conditions earlier.
         ConditionalBranchFolder.v().transform(jBody);
         
+        // Remove unnecessary typecasts
+        ConstantCastEliminator.v().transform(jBody);
+        
         // We need to run this transformer since the conditional branch folder
         // might have rendered some code unreachable (well, it was unreachable
         // before as well, but we didn't know).
@@ -652,6 +663,9 @@ public class DexBody  {
         UnusedLocalEliminator.v().transform(jBody);
         NopEliminator.v().transform(jBody);
         
+        if (m.toString().equals("<org.apache.log4j.config.PropertySetter: void introspect()>"))
+        	System.out.println("x");
+        
         for (Unit u: jBody.getUnits()) {
             if (u instanceof AssignStmt) {
                 AssignStmt ass = (AssignStmt)u;
@@ -663,8 +677,24 @@ public class DexBody  {
                     }
                 }
             }
+            if (u instanceof DefinitionStmt) {
+            	DefinitionStmt def = (DefinitionStmt) u;
+                // If the body references a phantom class in a CaughtExceptionRef,
+                // we must manually fix the hierarchy
+                if (def.getLeftOp() instanceof Local
+                		&& def.getRightOp() instanceof CaughtExceptionRef) {
+                	Type t = def.getLeftOp().getType();
+                	if (t instanceof RefType) {
+                		RefType rt = (RefType) t;
+                		if (rt.getSootClass().isPhantom()
+                				&& !rt.getSootClass().hasSuperclass()
+                				&& !rt.getSootClass().getName().equals("java.lang.Throwable"))
+                			rt.getSootClass().setSuperclass(Scene.v().getSootClass("java.lang.Throwable"));
+                	}
+                }
+            }
         }
-
+        
         Debug.printDbg("\nafter jb pack");
         Debug.printDbg("",(Body)jBody);
 
@@ -796,7 +826,12 @@ public class DexBody  {
             List<? extends ExceptionHandler> hList = tryItem.getExceptionHandlers();
             for (ExceptionHandler handler: hList) {
               int handlerAddress = handler.getHandlerCodeAddress();
-              Debug.printDbg("handler   (0x", Integer.toHexString(handlerAddress)   ,"): ", instructionAtAddress (handlerAddress).getUnit()  ," --- ", instructionAtAddress (handlerAddress-1).getUnit());
+              Debug.printDbg("handler   (0x",
+            		  Integer.toHexString(handlerAddress),
+            		  "): ",
+            		  instructionAtAddress (handlerAddress).getUnit(),
+            		  " --- ",
+            		  handlerAddress > 0 ? instructionAtAddress (handlerAddress-1).getUnit() : "<unknown>");
               String exceptionType = handler.getExceptionType();
               if (exceptionType == null)
                   exceptionType = "Ljava/lang/Throwable;";

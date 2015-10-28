@@ -63,12 +63,8 @@ import soot.jimple.StringConstant;
 import soot.jimple.ThrowStmt;
 import soot.jimple.internal.AbstractInstanceInvokeExpr;
 import soot.jimple.internal.AbstractInvokeExpr;
-import soot.toolkits.graph.ExceptionalUnitGraph;
 import soot.toolkits.scalar.LocalDefs;
 import soot.toolkits.scalar.LocalUses;
-import soot.toolkits.scalar.SimpleLiveLocals;
-import soot.toolkits.scalar.SimpleLocalUses;
-import soot.toolkits.scalar.SmartLocalDefs;
 import soot.toolkits.scalar.UnitValueBoxPair;
 
 /**
@@ -93,11 +89,9 @@ public class DexIfTransformer extends AbstractNullTransformer {
 
 	Local l = null;
 
-	protected void internalTransform(final Body body, String phaseName, @SuppressWarnings("rawtypes") Map options) {
-		final ExceptionalUnitGraph g = new ExceptionalUnitGraph(body);
-
-		final LocalDefs localDefs = new SmartLocalDefs(g, new SimpleLiveLocals(g));
-		final LocalUses localUses = new SimpleLocalUses(g, localDefs);
+	protected void internalTransform(final Body body, String phaseName, Map<String,String> options) {
+		final LocalDefs localDefs = LocalDefs.Factory.newLocalDefs(body);
+		final LocalUses localUses = LocalUses.Factory.newLocalUses(body, localDefs);
 
 		Set<IfStmt> ifSet = getNullIfCandidates(body);
 		for (IfStmt ifs : ifSet) {
@@ -318,12 +312,7 @@ public class DexIfTransformer extends AbstractNullTransformer {
 										doBreak = true;
 									return;
 								} else if (r instanceof StringConstant || r instanceof NewExpr) {
-									Debug.printDbg("NOT POSSIBLE StringConstant or NewExpr! ", stmt);
-									System.exit(-1);
-									usedAsObject = true;
-									if (usedAsObject)
-										doBreak = true;
-									return;
+									throw new RuntimeException("NOT POSSIBLE StringConstant or NewExpr at "  + stmt);
 								} else if (r instanceof NewArrayExpr) {
 									usedAsObject = false;
 									if (usedAsObject)
@@ -354,11 +343,8 @@ public class DexIfTransformer extends AbstractNullTransformer {
 							}
 
 							public void caseIdentityStmt(IdentityStmt stmt) {
-								if (stmt.getLeftOp() == l) {
-									Debug.printDbg("IMPOSSIBLE 0");
-									System.exit(-1);
-									usedAsObject = isObject(stmt.getRightOp().getType());
-								}
+								if (stmt.getLeftOp() == l)
+									throw new RuntimeException("IMPOSSIBLE 0");
 							}
 
 							public void caseEnterMonitorStmt(EnterMonitorStmt stmt) {
