@@ -36,6 +36,7 @@ import soot.EquivalentValue;
 import soot.Local;
 import soot.NullType;
 import soot.Scene;
+import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
 import soot.Value;
@@ -167,7 +168,14 @@ public class IFDSReachingDefinitions extends DefaultJimpleIFDSTabulationProblem<
 	}
 
 	public Map<Unit, Set<Pair<Value, Set<DefinitionStmt>>>> initialSeeds() {
-		return DefaultSeeds.make(Collections.singleton(Scene.v().getMainMethod().getActiveBody().getUnits().getFirst()), zeroValue());
+		if (Scene.v().hasMainClass()) {
+			return DefaultSeeds.make(Collections.singleton(Scene.v().getMainMethod().getActiveBody().getUnits().getFirst()), zeroValue());
+		}
+		else {
+			SootClass mainClass = Scene.v().getSootClass("dummyMainClass");
+			SootMethod dummyMainMethod = mainClass.getMethods().get(0);
+			return DefaultSeeds.make(Collections.singleton(dummyMainMethod.getActiveBody().getUnits().getFirst()), zeroValue());
+		}
 	}
 
 

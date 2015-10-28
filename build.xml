@@ -5,12 +5,15 @@
               directory with the processing instruction <?eclipse.ant.import?>
               as the first entry and export the buildfile again. --><project basedir="." default="build" name="soot">
     <property environment="env"/>
-    <property name="SootUtil.location" value="../../../../media/joshua/ext4_backup/home/joshua/workspace/SootUtil"/>
+    <property name="Instrumentor.location" value="../../../../media/joshua/ext4_backup/home/joshua/workspace/Instrumentor"/>
     <property name="TrimDroid.location" value="../../../../media/joshua/ext4_backup/home/joshua/workspace/TrimDroid"/>
+    <property name="investigator.location" value="../investigator"/>
     <property name="pathexecutor.location" value="../../../../media/joshua/ext4_backup/home/joshua/workspace/pathexecutor"/>
+    <property name="revealdroid.location" value="../revealdroid"/>
+    <property name="seal-utils.location" value="../../../../media/joshua/ext4_backup/home/joshua/workspace/seal-utils"/>
     <property name="soot-infoflow.location" value="../soot-infoflow"/>
     <property name="soot-infoflow-android.location" value="../soot-infoflow-android"/>
-    <property name="testFlowDroid.location" value="../../../../media/joshua/ext4_backup/home/joshua/workspace/testFlowDroid"/>
+    <property name="uic_exploit_gen.location" value="../../../../media/joshua/ext4_backup/home/joshua/workspace/uic_exploit_gen"/>
     <property name="ECLIPSE_HOME" value="../../Applications/eclipse-jee-luna/"/>
     <property name="heros.location" value="../heros"/>
     <property name="jasmin.location" value="../jasmin"/>
@@ -258,8 +261,8 @@
         </javac>
     </target>
     <target description="Build all projects which reference this project. Useful to propagate changes." name="build-refprojects">
-        <ant antfile="build.xml" dir="${SootUtil.location}" inheritAll="false" target="clean"/>
-        <ant antfile="build.xml" dir="${SootUtil.location}" inheritAll="false" target="build">
+        <ant antfile="build.xml" dir="${Instrumentor.location}" inheritAll="false" target="clean"/>
+        <ant antfile="build.xml" dir="${Instrumentor.location}" inheritAll="false" target="build">
             <propertyset>
                 <propertyref name="build.compiler"/>
             </propertyset>
@@ -270,8 +273,26 @@
                 <propertyref name="build.compiler"/>
             </propertyset>
         </ant>
+        <ant antfile="build.xml" dir="${investigator.location}" inheritAll="false" target="clean"/>
+        <ant antfile="build.xml" dir="${investigator.location}" inheritAll="false" target="build">
+            <propertyset>
+                <propertyref name="build.compiler"/>
+            </propertyset>
+        </ant>
         <ant antfile="build.xml" dir="${pathexecutor.location}" inheritAll="false" target="clean"/>
         <ant antfile="build.xml" dir="${pathexecutor.location}" inheritAll="false" target="build">
+            <propertyset>
+                <propertyref name="build.compiler"/>
+            </propertyset>
+        </ant>
+        <ant antfile="build.xml" dir="${revealdroid.location}" inheritAll="false" target="clean"/>
+        <ant antfile="build.xml" dir="${revealdroid.location}" inheritAll="false" target="build">
+            <propertyset>
+                <propertyref name="build.compiler"/>
+            </propertyset>
+        </ant>
+        <ant antfile="build.xml" dir="${seal-utils.location}" inheritAll="false" target="clean"/>
+        <ant antfile="build.xml" dir="${seal-utils.location}" inheritAll="false" target="build">
             <propertyset>
                 <propertyref name="build.compiler"/>
             </propertyset>
@@ -288,8 +309,8 @@
                 <propertyref name="build.compiler"/>
             </propertyset>
         </ant>
-        <ant antfile="build.xml" dir="${testFlowDroid.location}" inheritAll="false" target="clean"/>
-        <ant antfile="build.xml" dir="${testFlowDroid.location}" inheritAll="false" target="build">
+        <ant antfile="build.xml" dir="${uic_exploit_gen.location}" inheritAll="false" target="clean"/>
+        <ant antfile="build.xml" dir="${uic_exploit_gen.location}" inheritAll="false" target="build">
             <propertyset>
                 <propertyref name="build.compiler"/>
             </propertyset>
@@ -307,6 +328,12 @@
     <target description="compile project with Eclipse compiler" name="build-eclipse-compiler">
         <property name="build.compiler" value="org.eclipse.jdt.core.JDTCompilerAdapter"/>
         <antcall target="build"/>
+    </target>
+    <target name="soot.Main BankAccount.apk">
+        <java classname="soot.Main" failonerror="true" fork="yes">
+            <arg line="-d /home/joshua/branchcov/bankaccount/out &#10;-android-jars /home/joshua/android-sdks/platforms &#10;-allow-phantom-refs&#10;-src-prec apk &#10;-f j&#10;-w &#10;-process-dir /home/joshua/branchcov/BankAccount.apk"/>
+            <classpath refid="soot.classpath"/>
+        </java>
     </target>
     <target name="soot.Main TestNullIpcApp3">
         <java classname="soot.Main" failonerror="true" fork="yes">
