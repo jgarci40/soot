@@ -34,7 +34,7 @@ import java.util.*;
  * except that the key is the phase name.
  */
 public abstract class Pack implements HasPhaseOptions, Iterable<Transform> {
-	final private boolean DEBUG = true;
+	final private boolean DEBUG = false;
 	private String name;
 
 	public String getPhaseName() {
