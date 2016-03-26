@@ -34,7 +34,10 @@ import java.util.*;
  * except that the key is the phase name.
  */
 public abstract class Pack implements HasPhaseOptions, Iterable<Transform> {
+<<<<<<< HEAD
 	final private boolean DEBUG = false;
+=======
+>>>>>>> 18ebe5705866abd6ac136c6d9e0c82b62de1cb81
 	private String name;
 
 	public String getPhaseName() {
@@ -117,22 +120,14 @@ public abstract class Pack implements HasPhaseOptions, Iterable<Transform> {
 		Map<String, String> options = PhaseOptions.v().getPhaseOptions(this);
 		if (!PhaseOptions.getBoolean(options, "enabled"))
 			return;
-		if (DEBUG)
-			PhaseDumper.v().dumpBefore(getPhaseName());
 		internalApply();
-		if (DEBUG)
-			PhaseDumper.v().dumpAfter(getPhaseName());
 	}
 
 	public final void apply(Body b) {
 		Map<String, String> options = PhaseOptions.v().getPhaseOptions(this);
 		if (!PhaseOptions.getBoolean(options, "enabled"))
 			return;
-		if (DEBUG)
-			PhaseDumper.v().dumpBefore(b, getPhaseName());
 		internalApply(b);
-		if (DEBUG)
-			PhaseDumper.v().dumpAfter(b, getPhaseName());
 	}
 
 	public String getDeclaredOptions() {
