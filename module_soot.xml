@@ -121,15 +121,15 @@
   
   <target name="compile.module.soot" depends="compile.module.soot.production,compile.module.soot.tests" description="Compile module soot"/>
   
-  <target name="compile.module.soot.production" depends="register.custom.compilers,compile.module.jasmin,compile.module.heros" description="Compile module soot; production classes">
+  <target name="compile.module.soot.production" depends="compile.module.jasmin,compile.module.heros" description="Compile module soot; production classes">
     <mkdir dir="${soot.output.dir}"/>
-    <javac2 destdir="${soot.output.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.soot}/javac">
+    <javac destdir="${soot.output.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.soot}/javac">
       <compilerarg line="${compiler.args.soot}"/>
       <bootclasspath refid="soot.module.bootclasspath"/>
       <classpath refid="soot.module.production.classpath"/>
       <src refid="soot.module.sourcepath"/>
       <patternset refid="excluded.from.compilation.soot"/>
-    </javac2>
+    </javac>
     
     <copy todir="${soot.output.dir}">
       <fileset dir="${module.soot.basedir}/generated/jastadd">
@@ -159,7 +159,7 @@
     </copy>
   </target>
   
-  <target name="compile.module.soot.tests" depends="register.custom.compilers,compile.module.soot.production" description="compile module soot; test classes" unless="skip.tests"/>
+  <target name="compile.module.soot.tests" depends="compile.module.soot.production" description="compile module soot; test classes" unless="skip.tests"/>
   
   <target name="clean.module.soot" description="cleanup module">
     <delete dir="${soot.output.dir}"/>
