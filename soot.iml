@@ -34,7 +34,7 @@
       <sourceFolder url="file://$MODULE_DIR$/generated/singletons" isTestSource="false" />
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="inheritedJdk" />
+    <orderEntry type="jdk" jdkName="1.80.0_102" jdkType="JavaSDK" />
     <orderEntry type="module" module-name="jasmin" />
     <orderEntry type="module" module-name="heros" exported="" />
     <orderEntry type="module-library">
