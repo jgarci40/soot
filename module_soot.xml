@@ -22,38 +22,38 @@
     <pathelement location="${basedir}/../heros/slf4j-api-1.7.5.jar"/>
     <pathelement location="${basedir}/../heros/slf4j-simple-1.7.5.jar"/>
     <pathelement location="${basedir}/../heros/guava-18.0.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/polyglot.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/AXMLPrinter2.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/hamcrest-all-1.3.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/junit-4.11.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/cglib-nodep-2.2.2.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/javassist-3.18.2-GA.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/mockito-all-1.10.8.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/powermock-mockito-1.6.1-full.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/jboss-common-core-2.5.0.Final.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/asm-debug-all-5.0.3.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/dexlib2-2.1.2-87d10dac.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/util-2.1.2-87d10dac.jar"/>
-    <path refid="library.ant.classpath"/>
+    <pathelement location="${basedir}/../soot/libs/polyglot.jar"/>
+    <pathelement location="${basedir}/../soot/libs/AXMLPrinter2.jar"/>
+    <pathelement location="${basedir}/../soot/libs/hamcrest-all-1.3.jar"/>
+    <pathelement location="${basedir}/../soot/libs/junit-4.11.jar"/>
+    <pathelement location="${basedir}/../soot/libs/cglib-nodep-2.2.2.jar"/>
+    <pathelement location="${basedir}/../soot/libs/javassist-3.18.2-GA.jar"/>
+    <pathelement location="${basedir}/../soot/libs/mockito-all-1.10.8.jar"/>
+    <pathelement location="${basedir}/../soot/libs/powermock-mockito-1.6.1-full.jar"/>
+    <pathelement location="${basedir}/../soot/libs/jboss-common-core-2.5.0.Final.jar"/>
+    <pathelement location="${basedir}/../soot/libs/asm-debug-all-5.0.3.jar"/>
+    <pathelement location="${basedir}/../soot/libs/dexlib2-2.1.2-87d10dac.jar"/>
+    <pathelement location="${basedir}/../soot/libs/util-2.1.2-87d10dac.jar"/>
+    <pathelement location="${basedir}/../soot/libs/ant.jar"/>
   </path>
   
   <path id="soot.runtime.production.module.classpath">
     <pathelement location="${soot.output.dir}"/>
     <path refid="jasmin.runtime.production.module.classpath"/>
     <path refid="heros.runtime.production.module.classpath"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/polyglot.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/AXMLPrinter2.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/hamcrest-all-1.3.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/junit-4.11.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/cglib-nodep-2.2.2.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/javassist-3.18.2-GA.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/mockito-all-1.10.8.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/powermock-mockito-1.6.1-full.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/jboss-common-core-2.5.0.Final.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/asm-debug-all-5.0.3.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/dexlib2-2.1.2-87d10dac.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/util-2.1.2-87d10dac.jar"/>
-    <path refid="library.ant.classpath"/>
+    <pathelement location="${basedir}/../soot/libs/polyglot.jar"/>
+    <pathelement location="${basedir}/../soot/libs/AXMLPrinter2.jar"/>
+    <pathelement location="${basedir}/../soot/libs/hamcrest-all-1.3.jar"/>
+    <pathelement location="${basedir}/../soot/libs/junit-4.11.jar"/>
+    <pathelement location="${basedir}/../soot/libs/cglib-nodep-2.2.2.jar"/>
+    <pathelement location="${basedir}/../soot/libs/javassist-3.18.2-GA.jar"/>
+    <pathelement location="${basedir}/../soot/libs/mockito-all-1.10.8.jar"/>
+    <pathelement location="${basedir}/../soot/libs/powermock-mockito-1.6.1-full.jar"/>
+    <pathelement location="${basedir}/../soot/libs/jboss-common-core-2.5.0.Final.jar"/>
+    <pathelement location="${basedir}/../soot/libs/asm-debug-all-5.0.3.jar"/>
+    <pathelement location="${basedir}/../soot/libs/dexlib2-2.1.2-87d10dac.jar"/>
+    <pathelement location="${basedir}/../soot/libs/util-2.1.2-87d10dac.jar"/>
+    <pathelement location="${basedir}/../soot/libs/ant.jar"/>
   </path>
   
   <path id="soot.module.classpath">
@@ -64,38 +64,38 @@
     <pathelement location="${basedir}/../heros/slf4j-api-1.7.5.jar"/>
     <pathelement location="${basedir}/../heros/slf4j-simple-1.7.5.jar"/>
     <pathelement location="${basedir}/../heros/guava-18.0.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/polyglot.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/AXMLPrinter2.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/hamcrest-all-1.3.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/junit-4.11.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/cglib-nodep-2.2.2.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/javassist-3.18.2-GA.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/mockito-all-1.10.8.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/powermock-mockito-1.6.1-full.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/jboss-common-core-2.5.0.Final.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/asm-debug-all-5.0.3.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/dexlib2-2.1.2-87d10dac.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/util-2.1.2-87d10dac.jar"/>
-    <path refid="library.ant.classpath"/>
+    <pathelement location="${basedir}/../soot/libs/polyglot.jar"/>
+    <pathelement location="${basedir}/../soot/libs/AXMLPrinter2.jar"/>
+    <pathelement location="${basedir}/../soot/libs/hamcrest-all-1.3.jar"/>
+    <pathelement location="${basedir}/../soot/libs/junit-4.11.jar"/>
+    <pathelement location="${basedir}/../soot/libs/cglib-nodep-2.2.2.jar"/>
+    <pathelement location="${basedir}/../soot/libs/javassist-3.18.2-GA.jar"/>
+    <pathelement location="${basedir}/../soot/libs/mockito-all-1.10.8.jar"/>
+    <pathelement location="${basedir}/../soot/libs/powermock-mockito-1.6.1-full.jar"/>
+    <pathelement location="${basedir}/../soot/libs/jboss-common-core-2.5.0.Final.jar"/>
+    <pathelement location="${basedir}/../soot/libs/asm-debug-all-5.0.3.jar"/>
+    <pathelement location="${basedir}/../soot/libs/dexlib2-2.1.2-87d10dac.jar"/>
+    <pathelement location="${basedir}/../soot/libs/util-2.1.2-87d10dac.jar"/>
+    <pathelement location="${basedir}/../soot/libs/ant.jar"/>
   </path>
   
   <path id="soot.runtime.module.classpath">
     <pathelement location="${soot.output.dir}"/>
     <path refid="jasmin.runtime.module.classpath"/>
     <path refid="heros.runtime.module.classpath"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/polyglot.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/AXMLPrinter2.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/hamcrest-all-1.3.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/junit-4.11.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/cglib-nodep-2.2.2.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/javassist-3.18.2-GA.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/mockito-all-1.10.8.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/powermock-mockito-1.6.1-full.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/jboss-common-core-2.5.0.Final.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/asm-debug-all-5.0.3.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/dexlib2-2.1.2-87d10dac.jar"/>
-    <pathelement location="${basedir}/../soot-jgarci40-github/libs/util-2.1.2-87d10dac.jar"/>
-    <path refid="library.ant.classpath"/>
+    <pathelement location="${basedir}/../soot/libs/polyglot.jar"/>
+    <pathelement location="${basedir}/../soot/libs/AXMLPrinter2.jar"/>
+    <pathelement location="${basedir}/../soot/libs/hamcrest-all-1.3.jar"/>
+    <pathelement location="${basedir}/../soot/libs/junit-4.11.jar"/>
+    <pathelement location="${basedir}/../soot/libs/cglib-nodep-2.2.2.jar"/>
+    <pathelement location="${basedir}/../soot/libs/javassist-3.18.2-GA.jar"/>
+    <pathelement location="${basedir}/../soot/libs/mockito-all-1.10.8.jar"/>
+    <pathelement location="${basedir}/../soot/libs/powermock-mockito-1.6.1-full.jar"/>
+    <pathelement location="${basedir}/../soot/libs/jboss-common-core-2.5.0.Final.jar"/>
+    <pathelement location="${basedir}/../soot/libs/asm-debug-all-5.0.3.jar"/>
+    <pathelement location="${basedir}/../soot/libs/dexlib2-2.1.2-87d10dac.jar"/>
+    <pathelement location="${basedir}/../soot/libs/util-2.1.2-87d10dac.jar"/>
+    <pathelement location="${basedir}/../soot/libs/ant.jar"/>
   </path>
   
   
@@ -121,15 +121,15 @@
   
   <target name="compile.module.soot" depends="compile.module.soot.production,compile.module.soot.tests" description="Compile module soot"/>
   
-  <target name="compile.module.soot.production" depends="compile.module.jasmin,compile.module.heros" description="Compile module soot; production classes">
+  <target name="compile.module.soot.production" depends="register.custom.compilers,compile.module.jasmin,compile.module.heros" description="Compile module soot; production classes">
     <mkdir dir="${soot.output.dir}"/>
-    <javac destdir="${soot.output.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.soot}/javac">
+    <javac2 destdir="${soot.output.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.soot}/javac">
       <compilerarg line="${compiler.args.soot}"/>
       <bootclasspath refid="soot.module.bootclasspath"/>
       <classpath refid="soot.module.production.classpath"/>
       <src refid="soot.module.sourcepath"/>
       <patternset refid="excluded.from.compilation.soot"/>
-    </javac>
+    </javac2>
     
     <copy todir="${soot.output.dir}">
       <fileset dir="${module.soot.basedir}/generated/jastadd">
@@ -159,7 +159,7 @@
     </copy>
   </target>
   
-  <target name="compile.module.soot.tests" depends="compile.module.soot.production" description="compile module soot; test classes" unless="skip.tests"/>
+  <target name="compile.module.soot.tests" depends="register.custom.compilers,compile.module.soot.production" description="compile module soot; test classes" unless="skip.tests"/>
   
   <target name="clean.module.soot" description="cleanup module">
     <delete dir="${soot.output.dir}"/>
