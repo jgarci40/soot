@@ -118,8 +118,7 @@ public class FastHierarchy
         this.sc = Scene.v();
 
         /* First build the inverse maps. */
-        for (final Iterator<SootClass> clIt = sc.getClasses().snapshotIterator(); clIt.hasNext(); ) {
-        	SootClass cl = clIt.next();
+        for (SootClass cl : sc.getClasses().getElementsUnsorted()) {
             if( cl.resolvingLevel() < SootClass.HIERARCHY ) continue;
             if( !cl.isInterface() && cl.hasSuperclass() ) {
             	classToSubclasses.put(cl.getSuperclass(), cl);
@@ -147,13 +146,15 @@ public class FastHierarchy
     }
 
     /** Return true if class child is a subclass of class parent, neither of
-     * them being allowed to be interfaces. */
+     * them being allowed to be interfaces. If we don't know any of the
+     * classes, we always return false */
     public boolean isSubclass( SootClass child, SootClass parent ) {
         child.checkLevel(SootClass.HIERARCHY);
         parent.checkLevel(SootClass.HIERARCHY);
         Interval parentInterval = classToInterval.get( parent );
         Interval childInterval = classToInterval.get( child );
-        return parentInterval.isSubrange( childInterval );
+        return parentInterval != null && childInterval != null
+        		&& parentInterval.isSubrange( childInterval );
     }
 
     /** For an interface parent (MUST be an interface), returns set of all

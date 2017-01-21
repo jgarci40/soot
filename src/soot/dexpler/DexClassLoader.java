@@ -83,18 +83,18 @@ public class DexClassLoader {
         
         // get the fields of the class
         for (Field sf : defItem.getStaticFields()) {
-            if (sc.declaresField(sf.getName(), DexType.toSoot(sf.getType())))
-                continue;
-            SootField sootField = DexField.makeSootField(sf);
-            sc.addField(sootField);
-            da.handleFieldAnnotation(sootField, sf);
+        	if (sc.declaresField(sf.getName(), DexType.toSoot(sf.getType())))
+        		continue;
+        	SootField sootField = DexField.makeSootField(sf);
+        	sc.addField(sootField);
+        	da.handleFieldAnnotation(sootField, sf);
         }
         for (Field f: defItem.getInstanceFields()) {
-            if (sc.declaresField(f.getName(), DexType.toSoot(f.getType())))
-                continue;
-            SootField sootField = DexField.makeSootField(f);
-            sc.addField(sootField);
-            da.handleFieldAnnotation(sootField, f);
+        	if (sc.declaresField(f.getName(), DexType.toSoot(f.getType())))
+        		continue;
+        	SootField sootField = DexField.makeSootField(f);
+        	sc.addField(sootField);
+        	da.handleFieldAnnotation(sootField, f);
         }
         
         // get the methods of the class
@@ -106,7 +106,7 @@ public class DexClassLoader {
         }
         
         da.handleClassAnnotation(defItem);
-                
+        
         // In contrast to Java, Dalvik associates the InnerClassAttribute
         // with the inner class, not the outer one. We need to copy the
         // tags over to correspond to the Soot semantics.
@@ -118,17 +118,26 @@ public class DexClassLoader {
         		if (t instanceof InnerClassTag) {
         			InnerClassTag ict = (InnerClassTag) t;
         			
+        			// Get the outer class name
+        			String outer = DexInnerClassParser.getOuterClassNameFromTag(ict);
+        			if (outer == null) {
+						// If we don't have any clue what the outer class is, we just remove
+						// the reference entirely
+						innerTagIt.remove();
+						continue;
+        			}
+        			
+        			// If the tag is already associated with the outer class,
+        			// we leave it as it is
+        			if (outer.equals(sc.getName()))
+        				continue;
+
         			// Check the inner class to make sure that this tag actually
         			// refers to the current class as the inner class
         			String inner = ict.getInnerClass().replaceAll("/", ".");
-        			if (!inner.equals(sc.getName()))
+        			if (!inner.equals(sc.getName())) {
+						innerTagIt.remove();
         				continue;
-        			
-        			String outer = null;
-					if (ict.getOuterClass() == null) { // anonymous and local classes
-						outer = ict.getInnerClass().replaceAll("\\$[0-9].*$", "").replaceAll("/", ".");
-        			} else {
-        				outer = ict.getOuterClass().replaceAll("/", ".");
         			}
         			
         			SootClass osc = SootResolver.v().makeClassRef(outer);
@@ -167,8 +176,9 @@ public class DexClassLoader {
         		}
         	}
 			// remove tag if empty
-			if (ica.getSpecs().isEmpty())
+			if (ica.getSpecs().isEmpty()) {
 				sc.getTags().remove(ica);
+			}
         }
         
         return deps;

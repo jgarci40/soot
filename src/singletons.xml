@@ -62,6 +62,7 @@
   <class>soot.tagkit.InnerClassTagAggregator</class>
   <class>soot.jimple.toolkits.annotation.LineNumberAdder</class>
   <class>soot.baf.toolkits.base.LoadStoreOptimizer</class>
+  <class>soot.baf.toolkits.base.StoreChainOptimizer</class>
   <class>soot.jimple.toolkits.scalar.LocalNameStandardizer</class>
   <class>soot.toolkits.scalar.LocalPacker</class>
   <class>soot.toolkits.scalar.LocalSplitter</class>
@@ -98,6 +99,9 @@
   <class>soot.jimple.toolkits.typing.TypeAssigner</class>
   <class>soot.jimple.toolkits.scalar.UnconditionalBranchFolder</class>
   <class>soot.jimple.toolkits.scalar.ConstantCastEliminator</class>
+  <class>soot.jimple.toolkits.scalar.IdentityCastEliminator</class>
+  <class>soot.jimple.toolkits.scalar.FieldStaticnessCorrector</class>
+  <class>soot.jimple.toolkits.scalar.IdentityOperationEliminator</class>
   <class>soot.UnknownType</class>
   <class>soot.jimple.toolkits.scalar.UnreachableCodeEliminator</class>
   <class>soot.toolkits.scalar.UnusedLocalEliminator</class>

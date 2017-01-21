@@ -21,6 +21,7 @@ import java.util.zip.ZipOutputStream;
 
 import org.jf.dexlib2.AnnotationVisibility;
 import org.jf.dexlib2.Opcode;
+import org.jf.dexlib2.Opcodes;
 import org.jf.dexlib2.builder.BuilderInstruction;
 import org.jf.dexlib2.builder.BuilderOffsetInstruction;
 import org.jf.dexlib2.builder.Label;
@@ -76,6 +77,7 @@ import soot.G;
 import soot.IntType;
 import soot.Local;
 import soot.PackManager;
+import soot.Scene;
 import soot.ShortType;
 import soot.SootClass;
 import soot.SootField;
@@ -85,6 +87,7 @@ import soot.SourceLocator;
 import soot.Trap;
 import soot.Type;
 import soot.Unit;
+import soot.dexpler.DexInnerClassParser;
 import soot.dexpler.DexType;
 import soot.dexpler.Util;
 import soot.jimple.ClassConstant;
@@ -147,17 +150,17 @@ public class DexPrinter {
 	
 	private static final String CLASSES_DEX = "classes.dex";
 	
-	private static DexBuilder dexFile;
+	private DexBuilder dexFile;
 	
 	private File originalApk;
 	
 	public DexPrinter() {
-		dexFile = DexBuilder.makeDexBuilder();
-		//dexAnnotation = new DexAnnotation(dexFile);
+		int api = Scene.v().getAndroidAPIVersion();
+		dexFile = new DexBuilder(Opcodes.forApi(api));
 	}
 	
 	private void printApk(String outputDir, File originalApk) throws IOException {
-		ZipOutputStream outputApk;
+		ZipOutputStream outputApk = null;
 		if(Options.v().output_jar()) {
 			outputApk = PackManager.v().getJarFile();
 			G.v().out.println("Writing APK to: " + Options.v().output_dir());
@@ -172,9 +175,17 @@ public class DexPrinter {
 			G.v().out.println("Writing APK to: " + outputFileName);
 		}
 		G.v().out.println("do not forget to sign the .apk file with jarsigner and to align it with zipalign");
-		ZipFile original = new ZipFile(originalApk);
-		copyAllButClassesDexAndSigFiles(original, outputApk);
-		original.close();
+		
+		// Copy over additional resources from original APK
+		ZipFile original = null;
+		try {
+			original = new ZipFile(originalApk);
+			copyAllButClassesDexAndSigFiles(original, outputApk);
+		}
+		finally {
+			if (original != null)
+				original.close();
+		}
 		
 		// put our classes.dex into the zip archive
 		File tmpFile = File.createTempFile("toDex", null);
@@ -188,11 +199,12 @@ public class DexPrinter {
 				outputApk.write(data);
 			}
 			outputApk.closeEntry();
-			outputApk.close();
 		}
 		finally {
 			fis.close();
 			tmpFile.delete();
+			if (outputApk != null)
+				outputApk.close();
 		}
 	}
 
@@ -828,7 +840,7 @@ public class DexPrinter {
         	// InnerClass tag are written to the inner class which is different
         	// to Java. We thus check whether this tag actually points to our
     		// outer class.
-    		String outerClass = getOuterClassNameFromTag(icTag);
+    		String outerClass = DexInnerClassParser.getOuterClassNameFromTag(icTag);
 			String innerClass = icTag.getInnerClass().replaceAll("/", ".");
 						
 			// Only write the InnerClass tag to the inner class itself, not
@@ -876,18 +888,7 @@ public class DexPrinter {
     	    	
     	return anns;
     }
-
-	private String getOuterClassNameFromTag(InnerClassTag icTag) {
-		String outerClass;
-		if (icTag.getOuterClass() == null) { // anonymous inner classes
-			outerClass = icTag.getInnerClass().replaceAll("\\$[0-9,a-z,A-Z]*$", "").replaceAll("/", ".");
-		} else {
-			outerClass = icTag.getOuterClass().replaceAll("/", ".");
-		}
-		
-		return outerClass;
-	}
-
+    
     private List<Annotation> buildMemberClassesAttribute(SootClass parentClass,
     		InnerClassAttribute t, Set<String> skipList) {
     	List<Annotation> anns = null;
@@ -896,7 +897,7 @@ public class DexPrinter {
     	// Collect the inner classes
     	for (Tag t2 : t.getSpecs()) {
     		InnerClassTag icTag = (InnerClassTag) t2;
-    		String outerClass = getOuterClassNameFromTag(icTag);
+    		String outerClass = DexInnerClassParser.getOuterClassNameFromTag(icTag);
 			
 			// Only classes with names are member classes
 			if (icTag.getOuterClass() != null

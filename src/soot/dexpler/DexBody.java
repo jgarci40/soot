@@ -26,6 +26,8 @@ package soot.dexpler;
 
 import static soot.dexpler.instructions.InstructionFactory.fromInstruction;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,6 +37,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.jf.dexlib2.analysis.ClassPath;
+import org.jf.dexlib2.analysis.ClassPathResolver;
+import org.jf.dexlib2.analysis.ClassProvider;
 import org.jf.dexlib2.dexbacked.DexBackedDexFile;
 import org.jf.dexlib2.iface.DexFile;
 import org.jf.dexlib2.iface.ExceptionHandler;
@@ -73,7 +78,6 @@ import soot.dexpler.instructions.OdexInstruction;
 import soot.dexpler.instructions.PseudoInstruction;
 import soot.dexpler.instructions.RetypeableInstruction;
 import soot.dexpler.typing.DalvikTyper;
-import soot.javaToJimple.LocalGenerator;
 import soot.jimple.AssignStmt;
 import soot.jimple.CastExpr;
 import soot.jimple.CaughtExceptionRef;
@@ -94,10 +98,14 @@ import soot.jimple.toolkits.scalar.ConditionalBranchFolder;
 import soot.jimple.toolkits.scalar.ConstantCastEliminator;
 import soot.jimple.toolkits.scalar.CopyPropagator;
 import soot.jimple.toolkits.scalar.DeadAssignmentEliminator;
+import soot.jimple.toolkits.scalar.FieldStaticnessCorrector;
+import soot.jimple.toolkits.scalar.IdentityCastEliminator;
+import soot.jimple.toolkits.scalar.IdentityOperationEliminator;
 import soot.jimple.toolkits.scalar.LocalNameStandardizer;
 import soot.jimple.toolkits.scalar.NopEliminator;
 import soot.jimple.toolkits.scalar.UnreachableCodeEliminator;
 import soot.jimple.toolkits.typing.TypeAssigner;
+import soot.options.Options;
 import soot.toolkits.exceptions.TrapTightener;
 import soot.toolkits.scalar.LocalPacker;
 import soot.toolkits.scalar.LocalSplitter;
@@ -116,7 +124,6 @@ public class DexBody  {
     private Local[] registerLocals;
     private Local storeResultLocal;
     private Map<Integer, DexlibAbstractInstruction> instructionAtAddress;
-    private LocalGenerator localGenerator;
 
     private List<DeferableInstruction> deferredInstructions;
     private Set<RetypeableInstruction> instructionsToRetype;
@@ -134,6 +141,7 @@ public class DexBody  {
     private RefType declaringClassType;
     
     private final DexFile dexFile;
+    private final Method method;
 
     // detect array/instructions overlapping obfuscation
     private ArrayList<PseudoInstruction> pseudoInstructionData = new ArrayList<PseudoInstruction>();
@@ -152,7 +160,7 @@ public class DexBody  {
      * @param code the codeitem that is contained in this body
      * @param method the method that is associated with this body
      */
-    public DexBody(DexFile dexFile, Method method, RefType declaringClassType) {
+    DexBody(DexFile dexFile, Method method, RefType declaringClassType) {
         MethodImplementation code = method.getImplementation();
         if (code == null)
             throw new RuntimeException("error: no code for method "+ method.getName());
@@ -212,6 +220,7 @@ public class DexBody  {
         }
 
         this.dexFile = dexFile;
+        this.method = method;
     }
     
     /**
@@ -262,16 +271,6 @@ public class DexBody  {
      */
     public void addRetype(RetypeableInstruction i) {
         instructionsToRetype.add(i);
-    }
-
-    /**
-     * Generate a new local variable.
-     *
-     * @param t the type of the new variable.
-     * @return the generated local.
-     */
-    public Local generateLocal(Type t) {
-        return localGenerator.generateLocal(t);
     }
 
     /**
@@ -353,7 +352,6 @@ public class DexBody  {
 		t_whole_jimplification.start();
 
         jBody = (JimpleBody)b;
-        localGenerator = new LocalGenerator(jBody);
         deferredInstructions = new ArrayList<DeferableInstruction>();
         instructionsToRetype = new HashSet<RetypeableInstruction>();
 
@@ -430,10 +428,24 @@ public class DexBody  {
         final boolean isOdex = dexFile instanceof DexBackedDexFile ?
         		((DexBackedDexFile) dexFile).isOdexFile() : false;
         
+        ClassPath cp = null;
+        if (isOdex) {
+	        String[] sootClasspath = Options.v().soot_classpath().split(File.pathSeparator);
+	        List<String> classpathList = new ArrayList<String>();
+	        for (String str : sootClasspath)
+	        	classpathList.add(str);
+	        try{
+	        	ClassPathResolver resolver = new ClassPathResolver(classpathList, classpathList, classpathList, dexFile);
+	        	cp = new ClassPath(resolver.getResolvedClassProviders().toArray(new ClassProvider[0]));
+	        }catch(IOException e){
+	        	throw new RuntimeException(e);
+	        }
+        }
+
         int prevLineNumber = -1;
         for(DexlibAbstractInstruction instruction : instructions) {
         	if (isOdex && instruction instanceof OdexInstruction)
-        		((OdexInstruction) instruction).deOdex(dexFile);
+        		((OdexInstruction) instruction).deOdex(dexFile, method, cp);
             if (dangling != null) {
                 dangling.finalize(this, instruction);
                 dangling = null;
@@ -668,7 +680,12 @@ public class DexBody  {
         LocalPacker.v().transform(jBody);
         UnusedLocalEliminator.v().transform(jBody);
         LocalNameStandardizer.v().transform(jBody);
-
+        
+        // Some apps reference static fields as instance fields. We fix this
+        // on the fly.
+        if (Options.v().wrong_staticness() == Options.wrong_staticness_fix)
+        	FieldStaticnessCorrector.v().transform(jBody);
+        
         Debug.printDbg("\nafter type assigner localpacker and name standardizer");
         Debug.printDbg("",(Body)jBody);
         
@@ -691,6 +708,10 @@ public class DexBody  {
         
         // Remove unnecessary typecasts
         ConstantCastEliminator.v().transform(jBody);
+        IdentityCastEliminator.v().transform(jBody);
+        
+        // Remove unnecessary logic operations
+        IdentityOperationEliminator.v().transform(jBody);
         
         // We need to run this transformer since the conditional branch folder
         // might have rendered some code unreachable (well, it was unreachable
@@ -773,14 +794,7 @@ public class DexBody  {
     		this.localSplitter = new LocalSplitter(DalvikThrowAnalysis.v());
     	return this.localSplitter;
     }
-
-    private TrapTightener trapTightener = null;
-    protected TrapTightener getTrapTightener() {
-    	if (this.trapTightener == null)
-    		this.trapTightener = new TrapTightener(DalvikThrowAnalysis.v());
-    	return this.trapTightener;
-    }
-
+    
     private UnreachableCodeEliminator unreachableCodeEliminator = null;
     protected UnreachableCodeEliminator getUnreachableCodeEliminator() {
     	if (this.unreachableCodeEliminator == null)

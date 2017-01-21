@@ -142,7 +142,7 @@ public class SootClass extends AbstractHost implements Numberable {
 	 *             if the resolution is at an insufficient level
 	 */
 	public void checkLevel(int level) {
-		if (!Scene.v().doneResolving())
+		if (!Scene.v().doneResolving() || Options.v().ignore_resolving_levels())
 			return;
 		checkLevelIgnoreResolving(level);
 	}
@@ -264,9 +264,7 @@ public class SootClass extends AbstractHost implements Numberable {
 	 */
 	public SootField getFieldUnsafe(String name, Type type) {
 		checkLevel(SIGNATURES);
-		for (Iterator<SootField> fieldIt = fields.snapshotIterator(); fieldIt
-				.hasNext();) {
-			SootField field = fieldIt.next();
+		for (SootField field : fields.getElementsUnsorted()) {
 			if (field.getName().equals(name) && field.getType().equals(type))
 				return field;
 		}
@@ -295,7 +293,7 @@ public class SootClass extends AbstractHost implements Numberable {
 		checkLevel(SIGNATURES);
 		SootField foundField = null;
 
-		for (SootField field : fields) {
+		for (SootField field : fields.getElementsUnsorted()) {
 			if (field.getName().equals(name)) {
 				if (foundField == null)
 					foundField = field;
@@ -324,7 +322,7 @@ public class SootClass extends AbstractHost implements Numberable {
 	 */
 	public SootField getFieldUnsafe(String subsignature) {
 		checkLevel(SIGNATURES);
-		for (SootField field : fields) {
+		for (SootField field : fields.getElementsUnsorted()) {
 			if (field.getSubSignature().equals(subsignature))
 				return field;
 		}
@@ -336,10 +334,7 @@ public class SootClass extends AbstractHost implements Numberable {
 	 */
 	public boolean declaresField(String subsignature) {
 		checkLevel(SIGNATURES);
-		for (SootField field : fields)
-			if (field.getSubSignature().equals(subsignature))
-				return true;
-		return false;
+		return getFieldUnsafe(subsignature) != null;
 	}
 
 	/**
@@ -445,12 +440,34 @@ public class SootClass extends AbstractHost implements Numberable {
 
 	public Iterator<SootMethod> methodIterator() {
 		checkLevel(SIGNATURES);
-		return methodList.iterator();
+		return new Iterator<SootMethod>() {
+			final Iterator<SootMethod> internalIterator = methodList.iterator();
+			private SootMethod currentMethod;
+
+			@Override
+			public boolean hasNext() {
+				return internalIterator.hasNext();
+			}
+
+			@Override
+			public SootMethod next() {
+				currentMethod = internalIterator.next();
+				return currentMethod;
+			}
+			
+			@Override
+			public void remove() {
+				internalIterator.remove();
+
+				subSigToMethods.put(currentMethod.getNumberedSubSignature(), null);
+				currentMethod.setDeclared(false);
+			}
+		}; 
 	}
 
 	public List<SootMethod> getMethods() {
 		checkLevel(SIGNATURES);
-		return new ArrayList<SootMethod>(methodList);
+		return methodList;
 	}
 
 	/**
@@ -928,6 +945,7 @@ public class SootClass extends AbstractHost implements Numberable {
 	}
 
 	/** Returns the name of this class. */
+	@Override
 	public String toString() {
 		return getName();
 	}
@@ -979,6 +997,8 @@ public class SootClass extends AbstractHost implements Numberable {
 
 	/** Makes this class an application class. */
 	public void setApplicationClass() {
+		if (isApplicationClass())
+			return;
 		Chain<SootClass> c = Scene.v().getContainingChain(this);
 		if (c != null)
 			c.remove(this);
@@ -998,6 +1018,8 @@ public class SootClass extends AbstractHost implements Numberable {
 
 	/** Makes this class a library class. */
 	public void setLibraryClass() {
+		if (isLibraryClass())
+			return;
 		Chain<SootClass> c = Scene.v().getContainingChain(this);
 		if (c != null)
 			c.remove(this);
@@ -1016,7 +1038,8 @@ public class SootClass extends AbstractHost implements Numberable {
 	public boolean isJavaLibraryClass() {
 		if (name.startsWith("java.") || name.startsWith("sun.")
 				|| name.startsWith("javax.") || name.startsWith("com.sun.")
-				|| name.startsWith("org.omg.") || name.startsWith("org.xml."))
+				|| name.startsWith("org.omg.") || name.startsWith("org.xml.")
+                || name.startsWith("org.w3c.dom"))
 			return true;
 
 		return false;
@@ -1043,18 +1066,6 @@ public class SootClass extends AbstractHost implements Numberable {
 	/** Convenience method returning true if this class is phantom. */
 	public boolean isPhantom() {
 		return isPhantom;
-	}
-
-	/** Marks this class as phantom, without notifying the Scene. */
-	public void setPhantom(boolean value) {
-		if (value == false)
-			if (isPhantom)
-				throw new RuntimeException(
-						"don't know how to de-phantomize this class");
-			else
-				return;
-
-		setPhantomClass();
 	}
 
 	/**
@@ -1092,10 +1103,12 @@ public class SootClass extends AbstractHost implements Numberable {
 		return Modifier.isStatic(this.getModifiers());
 	}
 
+	@Override
 	public final int getNumber() {
 		return number;
 	}
 
+	@Override
 	public final void setNumber(int number) {
 		this.number = number;
 	}

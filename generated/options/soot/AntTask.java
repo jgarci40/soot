@@ -180,6 +180,10 @@ public class AntTask extends MatchingTask {
             if(arg) addArg("-debug-resolver");
         }
   
+        public void setignore_resolving_levels(boolean arg) {
+            if(arg) addArg("-ignore-resolving-levels");
+        }
+  
         public void setsoot_classpath(String arg) {
             addArg("-soot-classpath");
             addArg(arg);
@@ -187,6 +191,14 @@ public class AntTask extends MatchingTask {
   
         public void setprepend_classpath(boolean arg) {
             if(arg) addArg("-prepend-classpath");
+        }
+  
+        public void setignore_classpath_errors(boolean arg) {
+            if(arg) addArg("-ignore-classpath-errors");
+        }
+  
+        public void setprocess_multiple_dex(boolean arg) {
+            if(arg) addArg("-process-multiple-dex");
         }
   
         public void setprocess_dir(Path arg) {
@@ -262,6 +274,14 @@ public class AntTask extends MatchingTask {
   
         public void setpolyglot(boolean arg) {
             if(arg) addArg("-polyglot");
+        }
+  
+        public void setpermissive_resolving(boolean arg) {
+            if(arg) addArg("-permissive-resolving");
+        }
+  
+        public void setdrop_bodies_after_load(boolean arg) {
+            if(arg) addArg("-drop-bodies-after-load");
         }
   
         public void setoutput_dir(String arg) {
@@ -406,6 +426,20 @@ public class AntTask extends MatchingTask {
             return plugin.createPath();
         }
   
+        public void setwrong_staticness(String arg) {
+            if(false
+    
+                || arg.equals( "fail" )
+                || arg.equals( "ignore" )
+                || arg.equals( "fix" )
+                ) {
+                addArg("-wrong-staticness");
+                addArg(arg);
+            } else {
+                throw new BuildException("Bad value "+arg+" for option wrong_staticness");
+            }
+        }
+  
         public void setoptimize(boolean arg) {
             if(arg) addArg("-optimize");
         }
@@ -427,6 +461,7 @@ public class AntTask extends MatchingTask {
     
                 || arg.equals( "pedantic" )
                 || arg.equals( "unit" )
+                || arg.equals( "dalvik" )
                 ) {
                 addArg("-throw-analysis");
                 addArg(arg);
@@ -595,6 +630,12 @@ public class AntTask extends MatchingTask {
             addArg("preserve-source-annotations:"+(arg?"true":"false"));
           }
       
+          public void setstabilize_local_names(boolean arg) {
+            addArg("-p");
+            addArg("jb");
+            addArg("stabilize-local-names:"+(arg?"true":"false"));
+          }
+      
         }
     
         public Object createp_jb_ls() {
@@ -661,12 +702,6 @@ public class AntTask extends MatchingTask {
             addArg("enabled:"+(arg?"true":"false"));
           }
       
-          public void setignore_wrong_staticness(boolean arg) {
-            addArg("-p");
-            addArg("jb.tr");
-            addArg("ignore-wrong-staticness:"+(arg?"true":"false"));
-          }
-      
           public void setuse_older_type_assigner(boolean arg) {
             addArg("-p");
             addArg("jb.tr");
@@ -677,6 +712,12 @@ public class AntTask extends MatchingTask {
             addArg("-p");
             addArg("jb.tr");
             addArg("compare-type-assigners:"+(arg?"true":"false"));
+          }
+      
+          public void setignore_nullpointer_dereferences(boolean arg) {
+            addArg("-p");
+            addArg("jb.tr");
+            addArg("ignore-nullpointer-dereferences:"+(arg?"true":"false"));
           }
       
         }
@@ -719,6 +760,12 @@ public class AntTask extends MatchingTask {
             addArg("-p");
             addArg("jb.lns");
             addArg("only-stack-locals:"+(arg?"true":"false"));
+          }
+      
+          public void setsort_locals(boolean arg) {
+            addArg("-p");
+            addArg("jb.lns");
+            addArg("sort-locals:"+(arg?"true":"false"));
           }
       
         }
@@ -1180,6 +1227,12 @@ public class AntTask extends MatchingTask {
             addArg("trim-clinit:"+(arg?"true":"false"));
           }
       
+          public void settypes_for_invoke(boolean arg) {
+            addArg("-p");
+            addArg("cg");
+            addArg("types-for-invoke:"+(arg?"true":"false"));
+          }
+      
           public void setlibrary(String arg) {
             addArg("-p");
             addArg("cg");
@@ -1268,6 +1321,12 @@ public class AntTask extends MatchingTask {
             addArg("-p");
             addArg("cg.spark");
             addArg("pre-jimplify:"+(arg?"true":"false"));
+          }
+      
+          public void setapponly(boolean arg) {
+            addArg("-p");
+            addArg("cg.spark");
+            addArg("apponly:"+(arg?"true":"false"));
           }
       
           public void setvta(boolean arg) {
@@ -3017,6 +3076,21 @@ public class AntTask extends MatchingTask {
             addArg("-p");
             addArg("bb.lso");
             addArg("sll2:"+(arg?"true":"false"));
+          }
+      
+        }
+    
+        public Object createp_bb_sco() {
+            Object ret = new PhaseOptbb_sco();
+            phaseopts.add(ret);
+            return ret;
+        }
+        public class PhaseOptbb_sco {
+      
+          public void setenabled(boolean arg) {
+            addArg("-p");
+            addArg("bb.sco");
+            addArg("enabled:"+(arg?"true":"false"));
           }
       
         }

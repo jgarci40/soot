@@ -34,6 +34,7 @@ import java.util.StringTokenizer;
 import soot.dava.DavaBody;
 import soot.dava.toolkits.base.renamer.RemoveFullyQualifiedName;
 import soot.jimple.toolkits.callgraph.VirtualCalls;
+import soot.options.Options;
 import soot.tagkit.AbstractHost;
 import soot.util.IterableSet;
 import soot.util.Numberable;
@@ -86,9 +87,31 @@ public class SootMethod
      *
      * @param phaseName       Phase name for body loading. */
     private Body getBodyFromMethodSource(String phaseName) {
-    	if (ms == null)
-    		throw new RuntimeException("No method source set for method " + this.getSignature());
-        return ms.getBody(this, phaseName);
+    	// We get a copy of the field value just in case another thread
+    	// overwrites the method source in the meantime. We then check
+    	// again whether we really need to load anything.
+    	//
+    	// The loader does something like this:
+    	//		(1) <a lot of stuff>
+    	// 		(2) activeBody = ...;
+    	//		(3) ms = null;
+    	//
+    	// We need to avoid the situation in which we don't have a body yet,
+    	// trigger the loader, and then another thread triggers
+    	// retrieveActiveBody() again. If the first loader is between
+    	// statements (2) and (3), we would pass the check on the body, but
+    	// but then find that the method source is already gone when the other
+    	// thread finally passes statement (3) before we attempt to use the
+    	// method source here.
+    	
+    	MethodSource ms = this.ms;
+    	if (this.activeBody == null) {
+	    	if (ms == null)
+	    		throw new RuntimeException("No method source set for method " + this.getSignature());
+	        return ms.getBody(this, phaseName);
+    	}
+    	else
+    		return this.activeBody;
     }
 
     /** Sets the MethodSource of the current SootMethod. */
@@ -311,6 +334,11 @@ public class SootMethod
      */
 
     public Body retrieveActiveBody() {
+    	// If we already have a body for some reason, we just take it. In this case,
+    	// we don't care about resolving levels or whatever.
+    	if (hasActiveBody())
+    		return getActiveBody();
+    	
         declaringClass.checkLevel(SootClass.BODIES);
         if (declaringClass.isPhantomClass())
             throw new RuntimeException(
@@ -318,11 +346,14 @@ public class SootMethod
                     + getSignature()
                     + "; maybe you want to call c.setApplicationClass() on this class!");
         
-        if (!hasActiveBody()) {
-            setActiveBody(this.getBodyFromMethodSource("jb"));
-            ms = null;
-        }
-        return getActiveBody();
+        Body b = this.getBodyFromMethodSource("jb");
+        setActiveBody(b);
+        
+        // If configured, we drop the method source to save memory
+        if (Options.v().drop_bodies_after_load())
+        	ms = null;
+        
+        return b;
     }
 
     /**
@@ -333,7 +364,11 @@ public class SootMethod
             && declaringClass.isPhantomClass())
             throw new RuntimeException(
                 "cannot set active body for phantom class! " + this);
-
+        
+        // If someone sets a body for a phantom method, this method then is no
+        // longer phantom
+        isPhantom = false;
+        
         if (!isConcrete())
             throw new RuntimeException(
                 "cannot set body for non-concrete method! " + this);
@@ -587,21 +622,21 @@ public class SootMethod
         Type returnType) {
         return getSubSignatureImpl(name, params, returnType);
     }
-
+    
     private static String getSubSignatureImpl(
         String name,
         List<Type> params,
         Type returnType) {
         StringBuilder buffer = new StringBuilder();
-        Type t = returnType;
-
-        buffer.append(t.toString());
+        
+        buffer.append(returnType.getEscapedName());
+        
         buffer.append(" ");
         buffer.append(Scene.v().quotedNameOf(name));
         buffer.append("(");
 
         for (int i = 0; i < params.size(); i++) {
-            buffer.append(params.get(i));
+            buffer.append(params.get(i).getEscapedName());
             if (i < params.size() - 1)
                 buffer.append(",");
         }

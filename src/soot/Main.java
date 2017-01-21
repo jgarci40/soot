@@ -193,7 +193,14 @@ public class Main {
 				sb.append("    information on how to reproduce the problem. Thanks!");
 
 				System.err.println(sb);
+				
+				// Exit with an exit code 1
+				System.exit(1);
+				
 			} catch (UnsupportedEncodingException e1) {
+				
+				// Exit with an exit code 1
+				System.exit(1);
 			}
 		}
 	}
@@ -313,7 +320,7 @@ public class Main {
 
 		//if phantom refs enabled,  ignore wrong staticness in type assigner
 		if(Options.v().allow_phantom_refs()) {
-			PhaseOptions.v().setPhaseOption("jb.tr", "ignore-wrong-staticness:true");
+			Options.v().set_wrong_staticness(Options.wrong_staticness_fix);
 		}
 	}
 }

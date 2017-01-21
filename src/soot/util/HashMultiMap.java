@@ -18,7 +18,12 @@
  */
 
 package soot.util;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 
 /** A map with sets as values, HashMap implementation.
  *
@@ -27,15 +32,23 @@ import java.util.*;
 
 public class HashMultiMap<K,V> extends AbstractMultiMap<K, V> {
     protected final Map<K,Set<V>> m;
-
+    
     protected Map<K, Set<V>> createMap() {
-    	return new HashMap<K,Set<V>>(0);
+    	return createMap(0);
     }
     
+    protected Map<K, Set<V>> createMap(int initialSize) {
+    	return new HashMap<K,Set<V>>(initialSize);
+    }
+
     public HashMultiMap() {
     	this.m = createMap();
     }
     
+    public HashMultiMap(int initialSize) {
+    	this.m = createMap(initialSize);
+    }
+
     public HashMultiMap( MultiMap<K,V> m ) {
     	this.m = createMap();
         putAll( m );

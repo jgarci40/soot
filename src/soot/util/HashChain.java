@@ -30,21 +30,45 @@ import java.util.AbstractCollection;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentHashMap;
+
+import soot.Unit;
+import soot.UnitBox;
+import soot.jimple.GotoStmt;
+import soot.jimple.internal.JGotoStmt;
 
 /**
  * Reference implementation of the Chain interface, using a HashMap as the
  * underlying structure.
  */
 public class HashChain<E> extends AbstractCollection<E> implements Chain<E> {
-	private final Map<E, Link<E>> map = new HashMap<E, Link<E>>();
+	private final Map<E, Link<E>> map = new ConcurrentHashMap<E, Link<E>>();
 	private E firstItem;
 	private E lastItem;
 	private long stateCount = 0;
+	
+	private final Iterator<E> emptyIterator = new Iterator<E>() {
+
+		@Override
+		public boolean hasNext() {
+			return false;
+		}
+
+		@Override
+		public E next() {
+			return null;
+		}
+		
+		@Override
+		public void remove() {
+			// do nothing
+		}
+		
+	};
 
 	/** Erases the contents of the current HashChain. */
 	public void clear() {
@@ -62,6 +86,14 @@ public class HashChain<E> extends AbstractCollection<E> implements Chain<E> {
 	public boolean add(E item) {
 		addLast(item);
 		return true;
+	}
+	
+	/**
+	 * Gets all elements in the chain. There is no guarantee on sorting.
+	 * @return All elements in the chain in an unsorted collection
+	 */
+	public Collection<E> getElementsUnsorted() {
+		return map.keySet();
 	}
 
 	/**
@@ -182,6 +214,158 @@ public class HashChain<E> extends AbstractCollection<E> implements Chain<E> {
 
 	public void insertBefore(Chain<E> toInsert, E point) {
 		insertBefore((Collection<E>) toInsert, point);
+	}
+	
+	/**
+	 * Inserts instrumentation in a manner such that the resulting control flow
+	 * graph (CFG) of the program will contain <code>toInsert</code> on an edge
+	 * that is defined by <code>point_source</code> and <code>point_target</code>.
+	 * 
+	 * @param toInsert  the instrumentation to be added in the Chain
+	 * @param point_src the source point of an edge in CFG
+	 * @param point_tgt the target point of an edge
+	 */
+	public void insertOnEdge(E toInsert, E point_src, E point_tgt) {
+		
+		List<E> o = new ArrayList<E>();
+		o.add(toInsert);
+		insertOnEdge(o, point_src, point_tgt);
+		
+	}
+
+	/**
+	 * Inserts instrumentation in a manner such that the resulting control flow
+	 * graph (CFG) of the program will contain <code>toInsert</code> on an edge
+	 * that is defined by <code>point_source</code> and <code>point_target</code>.
+	 * 
+	 * @param toInsert  instrumentation to be added in the Chain
+	 * @param point_src the source point of an edge in CFG
+	 * @param point_tgt the target point of an edge
+	 */
+	public void insertOnEdge(Collection<? extends E> toInsert, E point_src, E point_tgt) {
+
+		if (toInsert == null)
+			throw new RuntimeException("Bad idea! You tried to insert " + "a null object into a Chain!");
+
+		// Insert 'toInsert' before 'target' point in chain if the source point is null
+		if (point_src == null && point_tgt != null) {
+			((Unit) point_tgt).redirectJumpsToThisTo((Unit) toInsert.toArray()[0]);
+			insertBefore(toInsert, point_tgt);
+			return;
+		}
+
+		// Insert 'toInsert' after 'source' point in chain if the target point is null
+		if (point_src != null && point_tgt == null) {
+			insertAfter(toInsert, point_src);
+			return;
+		}
+
+		// Throw an exception if both source and target is null
+		if (point_src == null && point_tgt == null) {
+			throw new RuntimeException("insertOnEdge failed! Both source and target points are null.");
+		}
+
+		// If target is right after the source in the Chain
+		// 1- Redirect all jumps (if any) from 'source' to 'target', to 'toInsert[0]'
+		//    (source->target) ==>  (source->toInsert[0])
+		// 2- Insert 'toInsert' after 'source' in Chain
+		if (getSuccOf(point_src) == point_tgt) {
+			List<UnitBox> boxes = ((Unit) point_src).getUnitBoxes();
+			for (UnitBox box : boxes) {
+				if (box.getUnit() == point_tgt) {
+					box.setUnit((Unit) toInsert.toArray()[0]);
+				}
+			}
+			insertAfter(toInsert, point_src);
+			return;
+		}
+		
+		
+		// If the target is not right after the source in chain then,
+		// 1- Redirect all jumps (if any) from 'source' to 'target', to 'toInsert[0]'
+		//    (source->target) ==>  (source->toInsert[0])
+		//    1.1- if there are no jumps from source to target, then such an edge does not exist. Throw an exception.
+		// 2- Insert 'toInsert' before 'target' in Chain
+		// 3- If required, add a 'goto target' statement so that no other edge executes 'toInsert'
+		boolean validEdgeFound = false;
+		E originalPred = getPredOf(point_tgt);
+		
+		List<UnitBox> boxes = ((Unit) point_src).getUnitBoxes();
+		for (UnitBox box : boxes) {
+			if (box.getUnit() == point_tgt) {
+
+				if (point_src instanceof GotoStmt) {
+
+					box.setUnit((Unit) toInsert.toArray()[0]);
+					insertAfter(toInsert, point_src);
+
+					E goto_unit = (E) new JGotoStmt((Unit) point_tgt);
+					insertAfter(goto_unit, (E) toInsert.toArray()[toInsert.size() - 1]);
+					return;
+				}
+
+				box.setUnit((Unit) toInsert.toArray()[0]);
+
+				validEdgeFound = true;
+			}
+		}
+		if (validEdgeFound) {
+			insertBefore(toInsert, point_tgt);
+
+			if (originalPred != point_src) {
+				if (originalPred instanceof GotoStmt)
+					return;
+
+				E goto_unit = (E) new JGotoStmt((Unit) point_tgt);
+				insertBefore(goto_unit, (E) toInsert.toArray()[0]);
+			}
+			return;
+		}
+
+		// In certain scenarios, the above code can add extra 'goto' units on a different edge
+		// So, an edge [src --> tgt] becomes [src -> goto tgt -> tgt].
+		// When this happens, the original edge [src -> tgt] ceases to exist.
+		// The following code handles such scenarios. 
+		if (getSuccOf(point_src) instanceof GotoStmt) {
+			if (((Unit) getSuccOf(point_src)).getUnitBoxes().get(0).getUnit() == point_tgt) {
+
+				((Unit) getSuccOf(point_src)).redirectJumpsToThisTo((Unit) toInsert.toArray()[0]);
+				insertBefore(toInsert, getSuccOf(point_src));
+
+				return;
+			}
+		}
+		
+		// If the control reaches this point, it means that an edge [stc -> tgt] as specified by user does not exist and is thus invalid
+		// Return an exception.
+		throw new RuntimeException(
+				"insertOnEdge failed! No such edge found. The edge on which you want to insert an instrumentation is invalid.");
+	}
+
+	/**
+	 * Inserts instrumentation in a manner such that the resulting control flow
+	 * graph (CFG) of the program will contain <code>toInsert</code> on an edge
+	 * that is defined by <code>point_source</code> and <code>point_target</code>.
+	 * 
+	 * @param toInsert  instrumentation to be added in the Chain
+	 * @param point_src the source point of an edge in CFG
+	 * @param point_tgt the target point of an edge
+	 */
+	public void insertOnEdge(List<E> toInsert, E point_src, E point_tgt) {
+		insertOnEdge((Collection<E>) toInsert, point_src, point_tgt);
+	}
+
+	/**
+	 * Inserts instrumentation in a manner such that the resulting control flow
+	 * graph (CFG) of the program will contain <code>toInsert</code> on an edge
+	 * that is defined by <code>point_source</code> and <code>point_target</code>.
+	 * 
+	 * @param toInsert  instrumentation to be added in the Chain
+	 * @param point_src the source point of an edge in CFG
+	 * @param point_tgt the target point of an edge
+	 */
+	public void insertOnEdge(Chain<E> toInsert, E point_src, E point_tgt) {
+		insertOnEdge((Collection<E>) toInsert, point_src, point_tgt);
 	}
 
 	public static <T> HashChain<T> listToHashChain(List<T> list) {
@@ -324,10 +508,14 @@ public class HashChain<E> extends AbstractCollection<E> implements Chain<E> {
 	}
 
 	public Iterator<E> iterator() {
+		if (firstItem == null || isEmpty())
+			return emptyIterator;
 		return new LinkIterator<E>(firstItem);
 	}
 
 	public Iterator<E> iterator(E item) {
+		if (firstItem == null || isEmpty())
+			return emptyIterator;
 		return new LinkIterator<E>(item);
 	}
 
@@ -351,9 +539,10 @@ public class HashChain<E> extends AbstractCollection<E> implements Chain<E> {
 	 *             if <code>head</code> is not an element of the chain.
 	 */
 	public Iterator<E> iterator(E head, E tail) {
+		if (firstItem == null || isEmpty())
+			return emptyIterator;
 		if (head != null && this.getPredOf(head) == tail) {
-			// special case hack, so empty ranges iterate 0 times
-			return new LinkIterator<E>(null, null);
+			return emptyIterator;
 		}
 		return new LinkIterator<E>(head, tail);
 	}
