@@ -34,7 +34,7 @@
       <sourceFolder url="file://$MODULE_DIR$/generated/singletons" isTestSource="false" />
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="jdk" jdkName="1.80.0_102" jdkType="JavaSDK" />
+    <orderEntry type="inheritedJdk" />
     <orderEntry type="module" module-name="jasmin" />
     <orderEntry type="module" module-name="heros" exported="" />
     <orderEntry type="module-library">
@@ -118,41 +118,37 @@
         <SOURCES />
       </library>
     </orderEntry>
-    <orderEntry type="module-library">
-      <library name="asm-debug-all-5.0.3.jar">
+    <orderEntry type="module-library" exported="">
+      <library>
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/libs/asm-debug-all-5.0.3.jar!/" />
+          <root url="jar://$MODULE_DIR$/libs/ant.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library">
-      <library name="dexlib2-2.1.2-87d10dac.jar">
+      <library>
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/libs/dexlib2-2.1.2-87d10dac.jar!/" />
+          <root url="jar://$MODULE_DIR$/libs/asm-debug-all-5.1.jar!/" />
         </CLASSES>
         <JAVADOC />
-        <SOURCES>
-          <root url="file://D:/Arbeit/smali/dexlib2/src/main/java" />
-        </SOURCES>
+        <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library">
-      <library name="util-2.1.2-87d10dac.jar">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/libs/util-2.1.2-87d10dac.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES>
-          <root url="file://D:/Arbeit/smali/util/src/main/java" />
-        </SOURCES>
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library" exported="">
       <library>
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/libs/ant.jar!/" />
+          <root url="jar://$MODULE_DIR$/libs/dexlib2-2.2b4-adb12356.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/libs/util-2.2b4-adb12356.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

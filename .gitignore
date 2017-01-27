@@ -13,3 +13,6 @@
 # Eclipse settings directory
 /.settings
 
+.DS_Store
+module_soot_*.xml
+build.xml.orig
