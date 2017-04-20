@@ -18,8 +18,6 @@
  */
 
 package soot;
-import heros.solver.CountingThreadPoolExecutor;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -41,6 +39,7 @@ import java.util.jar.JarOutputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 
+import heros.solver.CountingThreadPoolExecutor;
 import soot.baf.Baf;
 import soot.baf.BafASMBackend;
 import soot.baf.BafBody;
@@ -100,6 +99,7 @@ import soot.jimple.toolkits.scalar.ConditionalBranchFolder;
 import soot.jimple.toolkits.scalar.ConstantPropagatorAndFolder;
 import soot.jimple.toolkits.scalar.CopyPropagator;
 import soot.jimple.toolkits.scalar.DeadAssignmentEliminator;
+import soot.jimple.toolkits.scalar.EmptySwitchEliminator;
 import soot.jimple.toolkits.scalar.LocalNameStandardizer;
 import soot.jimple.toolkits.scalar.NopEliminator;
 import soot.jimple.toolkits.scalar.UnconditionalBranchFolder;
@@ -118,6 +118,7 @@ import soot.sootify.TemplatePrinter;
 import soot.tagkit.InnerClassTagAggregator;
 import soot.tagkit.LineNumberTagAggregator;
 import soot.toDex.DexPrinter;
+import soot.toolkits.exceptions.DuplicateCatchAllTrapRemover;
 import soot.toolkits.exceptions.TrapTightener;
 import soot.toolkits.graph.interaction.InteractionHandler;
 import soot.toolkits.scalar.ConstantInitializerToTagTransformer;
@@ -152,6 +153,8 @@ public class PackManager {
         addPack(p = new JimpleBodyPack());
         {
             p.add(new Transform("jb.tt", TrapTightener.v()));
+            p.add(new Transform("jb.dtr", DuplicateCatchAllTrapRemover.v()));
+            p.add(new Transform("jb.ese", EmptySwitchEliminator.v()));
             p.add(new Transform("jb.ls", LocalSplitter.v()));
             p.add(new Transform("jb.a", Aggregator.v()));
             p.add(new Transform("jb.ule", UnusedLocalEliminator.v()));
@@ -689,8 +692,12 @@ public class PackManager {
 		}
         
         // If something went wrong, we tell the world
-        if (executor.getException() != null)
-        	throw (RuntimeException) executor.getException();
+        if (executor.getException() != null) {
+        	if (executor.getException() instanceof RuntimeException)
+        		throw (RuntimeException) executor.getException();
+        	else
+        		throw new RuntimeException(executor.getException());
+        }
     }
 
 	private void tearDownJAR() {

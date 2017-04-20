@@ -31,7 +31,10 @@ import java.util.Set;
  */
 
 public class HashMultiMap<K,V> extends AbstractMultiMap<K, V> {
-    protected final Map<K,Set<V>> m;
+	
+	private static final long serialVersionUID = -1928446853508616896L;
+	
+	protected final Map<K,Set<V>> m;
     
     protected Map<K, Set<V>> createMap() {
     	return createMap(0);
@@ -131,7 +134,7 @@ public class HashMultiMap<K,V> extends AbstractMultiMap<K, V> {
     public Set<V> get( K o ) {
         Set<V> ret = m.get( o );
         if( ret == null ) return Collections.emptySet();
-        return Collections.unmodifiableSet(ret);
+        else return ret;
     }
 
     @Override
