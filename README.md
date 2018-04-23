@@ -1,65 +1,84 @@
-[![Build Status](http://soot-build.cs.uni-paderborn.de/jenkins/buildStatus/icon?job=soot/soot-develop)](http://soot-build.cs.uni-paderborn.de/jenkins/job/soot/job/soot-develop/)
+[![Build Status](http://soot-build.cs.uni-paderborn.de/jenkins/buildStatus/icon?job=soot/soot-build-j9)](http://soot-build.cs.uni-paderborn.de/jenkins/job/soot/job/soot-build-j9/)
 
-# Looking for PostDoc or Ph.D. student to work on Soot!
+# What is Soot-j9?
 
-The [research group of Eric Bodden](https://www.hni.uni-paderborn.de/en/software-engineering/) has acquired funding for a three-year project that will fund a PostDoc or Ph.D. student with the goal of applying major upgrades to Soot to make it sustainable for the future. The position is fully funded and does not include any teaching or administrative duties (although teaching is possible if desired). We will assure that at least 50% of the time can also be spent on personal research.
-
-As Soot is one of the most widely used research infrastructures worldwide, this position will give you a great opportunity to obtain wide exposition in the research community. In case you are interested in applying, please [contact Eric Bodden directly](https://www.hni.uni-paderborn.de/en/software-engineering/staff/bodden/).
-
-# Soot supports Java 9 modules now!
-Try and get involved in Soot's Java 9 bleeding edge developement. Check out the [Soot-j9](https://github.com/sable/soot/tree/java9) branch.
-
-# What is Soot?
-
-Soot is a Java optimization framework. It provides four intermediate representations for analyzing and transforming Java bytecode:
-
-* Baf: a streamlined representation of bytecode which is simple to manipulate.
-* Jimple: a typed 3-address intermediate representation suitable for optimization.
-* Shimple: an SSA variation of Jimple.
-* Grimp: an aggregated version of Jimple suitable for decompilation and code inspection.
-
-See http://www.sable.mcgill.ca/soot/ for details.
-
-# How do I get started with Soot?
-
-We have some documentation on Soot in the [wiki](https://github.com/Sable/soot/wiki) and also a large range of [tutorials](http://www.sable.mcgill.ca/soot/tutorial/index.html) on Soot.
-
-# Including Soot in your Project
-
-A Soot snapshot release is currently built for each commit to the `develop` branch. You can include Soot as 
-a dependency via Maven, Gradle, SBT, etc using the following coordinates:
+Soot-j9 is an (experimental) extension of Soot for the java 9 module system.
+For Soot details see http://www.sable.mcgill.ca/soot/.
 
 
-```.xml
-<dependencies>
-  <dependency>
-    <groupId>ca.mcgill.sable</groupId>
-    <artifactId>soot</artifactId>
-    <version>3.0.0-SNAPSHOT</version>
-  </dependency>
-</dependencies>
-<repositories>
-  <repository>
-    <id>soot-snapshot</id>
-    <name>soot snapshots</name>
-    <url>https://soot-build.cs.uni-paderborn.de/nexus/repository/soot-snapshot/</url>
-  </repository>
-</repositories>	
+
+**Note that Soot-j9 is not yet stable nor complete.**
+
+# How do I obtain Soot-j9 nightly builds
+
+Nightly builds of Soot can be obtained from [nightly build](https://soot-build.cs.uni-paderborn.de/nightly/soot/). The "sootj9-trunk.jar" file is an all-in-one file that also contains all the required libraries. 
+
+
+
+
+# What works?
+
+ * Automatic modules (modules automatically created from jars in the module-path)
+ * Named modules
+ * Exploded modules
+ * Modular jar files
+ * Resolving modules in Soot's `ModuleScene`
+ * Spark
+
+# What does not work yet?
+ * Anonymous modules (mixing module- and class-path)
+ * Multi-module jar files
+
+
+# How to use Soot-j9?
+
+## Use from Source Code
+To load modules in Soot's `ModuleScene` from java:
+```
+// configure Soot's options
+Options.v().set_prepend_classpath(true); // this is currently required to include the virtual java 9 filesystem jrt://
+Options.v().set_soot_modulepath(modulePath);
+
+
+// load classes from modules into Soot
+  	Map<String, List<String>> map = ModulePathSourceLocator.v().getClassUnderModulePath(modulePath);
+        for (String module : map.keySet()) {
+            for (String klass : map.get(module)) {
+                logger.info("Loaded Class: " + klass + "\n");
+                loadClass(klass, false, module);
+
+            }
+    }
+
+
+    //this must be called after all classes are resolved
+    Scene.v().loadNecessaryClasses();
+
+
+  public static SootClass loadClass(String name, boolean main, String module) {
+        SootClass c = ModuleScene.v().loadClassAndSupport(name, Optional.of(module));
+        c.setApplicationClass();
+        if (main)
+            Scene.v().setMainClass(c);
+        return c;
+    }
 
 ```
 
-**Please make sure that your Java version is up to date to avoid problems with our SSL certificate**
+## Use from the Command Line
+To execute Soot using Java 1.9, but analyzing a classpath run:
+`java -cp soot-trunk-j9.jar soot.Main -cp VIRTUAL_FS_FOR_JDK9:directoryToAnalyse --process-dir directoryToAnalyse`
 
-You can also obtain older builds of the `develop` branch. A complete listing of builds can be found in our [Nexus repository](https://soot-build.cs.uni-paderborn.de/nexus/#browse/browse/components:soot-snapshot).
+the value `VIRTUAL_FS_FOR_JDK9` indicates that Soot should search Java's 9 virtual filesystem `jrt:/` for classes, too, although Soot is not executed in module mode.
 
-# How do I obtain Soot without Maven?
+To load modules and classes in Soot using java 1.8 run:
 
-All of our Soot builds for the `develop` branch are stored up to one month in our [Nexus repository](https://soot-build.cs.uni-paderborn.de/nexus/#browse/browse/components:soot-snapshot) and can be obtained from there.
-The latest snapshot build of Soot can also be obtained [directly](https://soot-build.cs.uni-paderborn.de/public/origin/develop/soot/soot-develop/build/). The "sootclasses-trunk-jar-with-dependencies.jar" file is an all-in-one file that also contains all the required libraries. The "sootclasses-trunk.jar" file contains only Soot, allowing you to manually pick dependencies as you need them. If you do not want to bother with dependencies, we recommend using the former.
+` java -cp PATH_TO_JAVA9/jrt-fs.jar:soot-trunk-j9.jar soot.Main -pp -soot-modulepath modules/  `
 
-# Building Soot yourself
 
-If you cannot work with the prebuild versions and need to build Soot on your own, please consider the [wiki](https://github.com/Sable/soot/wiki/Building-Soot-from-the-Command-Line-(Recommended)) for further steps.
+Please replace `PATH_TO_JAVA9` with the path to your local installation of java 9.
+The `jrt-fs.jar` is a built-in NIO FileSystem provider for the jrt:// filesystem java 9 uses that replaces `rt.jar`. 
+
 
 # About Soot's source code
 
@@ -68,14 +87,13 @@ Development happens in the develop branch. To catch the bleeding edge of Soot, c
 In case of any questions, please consult the Soot
 mailing list at: http://www.sable.mcgill.ca/mailman/listinfo/soot-list/
 
+# How do I contribute to Soot?
+
+We are happy to accept arbitrary improvements to Soot in form of GitHub pull requests. Please read our [contribution guidelines](https://github.com/Sable/soot/wiki/Contributing-to-Soot) before setting up a pull request.
+
 # What extensions exist to Soot?
 
 We maintain a [list of extensions that can be used in combination with Soot](https://github.com/Sable/soot/wiki/Extensions-to-Soot). Feel free to add your own!
 
 # Please help us improve Soot!
 You are using Soot and would like to help us support it in the future? Then please support us by filling out [this little web form](https://goo.gl/forms/rk1oSxFIxAH0xaf52).
-
-That way you can help us in two ways:
-* By letting us know how we can improve Soot you can directly help us prioritize newly planned features.
-* By stating your name and affiliation you help us showcasing Soot’s large user base.
-Thanks!

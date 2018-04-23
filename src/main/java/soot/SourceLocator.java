@@ -18,12 +18,15 @@
  */
 
 package soot;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -42,6 +45,7 @@ import com.google.common.cache.LoadingCache;
 
 import soot.JavaClassProvider.JarException;
 import soot.asm.AsmClassProvider;
+import soot.asm.AsmJava9ClassProvider;
 import soot.dexpler.DexFileProvider;
 import soot.options.Options;
 
@@ -55,6 +59,7 @@ public class SourceLocator {
     protected List<ClassProvider> classProviders;
     protected List<String> classPath;
     private List<String> sourcePath;
+    private boolean java9Mode = false;
 
     ;
     private LoadingCache<String, ClassSourceType> pathToSourceType = CacheBuilder.newBuilder().initialCapacity(60)
@@ -118,6 +123,8 @@ public class SourceLocator {
     }
 
     public static SourceLocator v() {
+        if (ModuleUtil.module_mode())
+            return G.v().soot_ModulePathSourceLocator();
         return G.v().soot_SourceLocator();
     }
 
@@ -148,6 +155,13 @@ public class SourceLocator {
         for (String originalDir : classPath.split(regex)) {
             try {
                 String canonicalDir = new File(originalDir).getCanonicalPath();
+                //FIXME: make this nice in the future
+                //currently, we do not add it to NOT break backward compatibility
+                //instead, we add the AsmJava9ClassProvider in setupClassProvider()
+                if (originalDir.equals(ModulePathSourceLocator.DUMMY_CLASSPATH_JDK9_FS)) {
+                    SourceLocator.v().java9Mode = true;
+                    continue;
+                }
                 ret.add(canonicalDir);
             } catch (IOException e) {
                 throw new CompilationDeathException("Couldn't resolve classpath entry " + originalDir + ": " + e);
@@ -184,7 +198,7 @@ public class SourceLocator {
                 ClassSource ret = new ClassProvider() {
 
                     @Override
-					public ClassSource find(String className) {
+                    public ClassSource find(String className) {
                         String fileName = className.replace('.', '/') + ".class";
                         InputStream stream = cl.getResourceAsStream(fileName);
                         if (stream == null)
@@ -226,9 +240,16 @@ public class SourceLocator {
                 classProviders.add(classFileClassProvider);
                 classProviders.add(new JimpleClassProvider());
                 classProviders.add(new JavaClassProvider());
-                break;
+                if (this.java9Mode){
+                classProviders.add(new AsmJava9ClassProvider());
+            }
+
+            break;
             case Options.src_prec_only_class:
                 classProviders.add(classFileClassProvider);
+                if (this.java9Mode) {//FIXME: improve code here
+                    classProviders.add(new AsmJava9ClassProvider());
+                }
                 break;
             case Options.src_prec_java:
                 classProviders.add(new JavaClassProvider());
@@ -281,7 +302,7 @@ public class SourceLocator {
         return sourcePath;
     }
 
-    private ClassSourceType getClassSourceType(String path) {
+    protected ClassSourceType getClassSourceType(String path) {
         try {
             return pathToSourceType.get(path);
         } catch (Exception e) {
@@ -337,8 +358,7 @@ public class SourceLocator {
                 for (DexFileProvider.DexContainer container : DexFileProvider.v().getDexFromSource(new File(aPath))) {
                     classes.addAll(DexClassProvider.classesOfDex(container.getBase()));
                 }
-            } catch (CompilationDeathException e) 
-            { //There might be cases where there is no dex file within a JAR or ZIP file...
+            } catch (CompilationDeathException e) { //There might be cases where there is no dex file within a JAR or ZIP file...
             } catch (IOException e) {
                 /* Ignore unreadable files */
             }
@@ -656,7 +676,7 @@ public class SourceLocator {
         this.dexClassPathExtensions = null;
     }
 
-    private enum ClassSourceType {
-        jar, zip, apk, dex, directory, unknown
+    protected enum ClassSourceType {
+        jar, zip, apk, dex, directory, jrt, unknown
     }
 }

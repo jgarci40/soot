@@ -124,9 +124,11 @@ public class Scene // extends AbstractHost
 		}
 	}
 
-	public static Scene v() {
-		return G.v().soot_Scene();
-	}
+    public static Scene v() {
+        if (ModuleUtil.module_mode())
+            return G.v().soot_ModuleScene();
+        return G.v().soot_Scene();
+    }
 
 	Chain<SootClass> classes = new HashChain<SootClass>();
 	Chain<SootClass> applicationClasses = new HashChain<SootClass>();
@@ -1438,12 +1440,16 @@ public class Scene // extends AbstractHost
 
 		addBasicClass("java.lang.String");
 		addBasicClass("java.lang.StringBuffer", SootClass.SIGNATURES);
+		addBasicClass("java.lang.Enum", SootClass.SIGNATURES);
+
 
 		addBasicClass("java.lang.Error");
 		addBasicClass("java.lang.AssertionError", SootClass.SIGNATURES);
 		addBasicClass("java.lang.Throwable", SootClass.SIGNATURES);
 		addBasicClass("java.lang.Exception", SootClass.SIGNATURES);
 		addBasicClass("java.lang.NoClassDefFoundError", SootClass.SIGNATURES);
+		addBasicClass("java.lang.Exception", SootClass.SIGNATURES);
+		addBasicClass("java.lang.ReflectiveOperationException",SootClass.SIGNATURES);
 		addBasicClass("java.lang.ExceptionInInitializerError");
 		addBasicClass("java.lang.RuntimeException");
 		addBasicClass("java.lang.ClassNotFoundException");
@@ -1516,7 +1522,11 @@ public class Scene // extends AbstractHost
 		return all;
 	}
 
-	private void addReflectionTraceClasses() {
+    protected Set<String>[] getBasicClassesIncludingResolveLevel() {
+        return this.basicclasses;
+    }
+
+	protected void addReflectionTraceClasses() {
 		CGOptions options = new CGOptions(PhaseOptions.v().getPhaseOptions("cg"));
 		String log = options.reflection_log();
 
@@ -1755,6 +1765,10 @@ public class Scene // extends AbstractHost
 	public void setDoneResolving() {
 		doneResolving = true;
 	}
+
+    void setResolving(boolean value) {
+        doneResolving = value;
+    }
 
 	public void setMainClassFromOptions() {
 		if (mainClass != null)
