@@ -25,7 +25,7 @@ package soot.options;
 import java.util.*;
 
 /** Option parser for Spark. */
-@javax.annotation.Generated(value = "Saxonica v3.0", date = "2018-04-18T13:30:46.087+02:00", comments = "from soot_options.xml")
+@javax.annotation.Generated(value = "Saxonica v3.0", date = "2018-04-23T15:57:43.431-07:00", comments = "from soot_options.xml")
 public class SparkOptions {
 
     private Map<String, String> options;
